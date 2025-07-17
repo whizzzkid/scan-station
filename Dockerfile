@@ -17,6 +17,7 @@ RUN apt update &&         \
       scanbd              \
       time                \
       units               \
+      usbutils            \
       util-linux
 
 RUN git clone https://github.com/rocketraman/sane-scan-pdf.git --depth 1

@@ -8,7 +8,15 @@ Headless Scanning Server For Fujitsu ScanSnap and Similar Devices.
 
 These are pretty cheap to find used, I brought mine for CA$5 from a [local electronics recycler](https://retail.era.ca).
 
-[!["Fujitsu ScanSnap S1500](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)
+| | |
+| --- | --- |
+| [Wikipedia Entry](https://en.wikipedia.org/wiki/List_of_Fujitsu_image_scanners) | [!["Fujitsu ScanSnap S1500](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)|
+| [Fujitsu ScanSnap S1500 Front](./assets/ScanSnap_S1500_Front.jpg) | [![Fujitsu ScanSnap S1500](./assets/ScanSnap_S1500_Front.jpg)](./assets/ScanSnap_S1500_Front.jpg) |
+| [Fujitsu ScanSnap S1500 Rear](./assets/ScanSnap_S1500_Rear.jpg) | [![Fujitsu ScanSnap S1500 Back](./assets/ScanSnap_S1500_Back.jpg)](./assets/ScanSnap_S1500_Rear.jpg) |
+| [Fujitsu ScanSnap S1500 Internal](./assets/ScanSnap_S1500_Internal.jpg) | [![Fujitsu ScanSnap S1500 Tray](./assets/ScanSnap_S1500_Internal.jpg)](./assets/ScanSnap_S1500_Internal.jpg) |
+| [Fujitsu ScanSnap S1500 Closed](./assets/ScanSnap_S1500_Closed.jpg) | [![Fujitsu ScanSnap S1500 Closed](./assets/ScanSnap_S1500_Closed.jpg)](./assets/ScanSnap_S1500_Closed.jpg) |
+
+
 
 This is a duplex scanner (scans both sides at once) with a gravity fed tray and has a scan button on the device to start scanning.
 
