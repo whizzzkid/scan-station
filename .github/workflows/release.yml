@@ -1,0 +1,21 @@
+name: Build and publish a Docker image to ghcr.io
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: GHCR-Action
+        uses: KuhlTime/ghcr-action@1c6d32f50acb9bdacc942f160c01dc5c8b755571
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          platforms: linux/amd64,linux/arm64,linux/arm64/v8
