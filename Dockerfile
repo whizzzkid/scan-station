@@ -7,6 +7,7 @@ RUN apt update &&         \
     apt upgrade -y &&     \
     apt install -y        \
       bc                  \
+      ffmpeg              \
       ghostscript         \
       git                 \
       imagemagick         \
@@ -16,7 +17,9 @@ RUN apt update &&         \
       sane-utils          \
       scanbd              \
       time                \
+      tzdata              \
       units               \
+      unpaper             \
       usbutils            \
       util-linux
 
