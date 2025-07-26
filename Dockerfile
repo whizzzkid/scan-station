@@ -1,7 +1,6 @@
 FROM debian:bookworm-slim
 
 WORKDIR /app
-ENV TZ=${TZ-"America/Edmonton"}
 
 # Dependencies based on: https://github.com/rocketraman/sane-scan-pdf/wiki/Dependencies-Installation
 RUN apt update &&         \
@@ -23,6 +22,7 @@ RUN apt update &&         \
       usbutils            \
       util-linux
 
+ENV TZ=${TZ-"America/Edmonton"}
 RUN git clone https://github.com/rocketraman/sane-scan-pdf.git --depth 1
 
 COPY scanbd.conf /etc/scanbd/scanbd.conf
