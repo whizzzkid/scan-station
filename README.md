@@ -48,6 +48,8 @@ services:
     hostname: scanner
     restart: always
     privileged: true
+    environment:
+      - TZ=${TZ}
     volumes:
       - /ingest:/scans
       - /var/run/dbus:/var/run/dbus
@@ -75,11 +77,28 @@ You can configure the DPI and Mode settings in the `docker-compose.yaml`:
 
 ```yaml
     environment:
-      - dpi=120       # defaults to 300
-      - mode=Gray     # defaults to 'Color'
+      - TZ='America/edmonton'                 # defaults to 'Etc/UTC'
+      - dpi=120                               # defaults to 300
+      - mode=Gray                             # defaults to 'Color'
+      - file_prefix=scan                      # defaults to 'scan'
+      - date_format="%Y-%m-%d-%H%M%S-%3N-%Z"  # defaults to "%Y-%m-%d-%H%M%S-%3N-%Z"
 ```
 
-Or, if you want more flexibility, you can probably create your custom script and overlay in the docker compose like:
+Or, create a `.env` file in the same directory as `docker-compose.yaml` with the above variables, this will override the defaults.
+
+```sh
+# .env
+TZ='America/edmonton'                         # defaults to 'Etc/UTC'
+dpi=120                                       # defaults to 300
+mode=Gray                                     # defaults to 'Color'
+file_prefix=scan                              # defaults to 'scan'
+date_format="%Y-%m-%d-%H%M%S-%3N-%Z"          # defaults to "%Y-%m-%d-%H%M%S-%3N-%Z"
+```
+
+> [!TIP]
+> The computed filename with defaults will be `scan-<YYYY>-<MM>-<DD>-<HHMMSS>-<3N>-<Z>.pdf`, for example `scan-2025-01-01-120000-123-UTC.pdf`.
+
+Or, if you want more flexibility, you can probably create your own [custom scan script](scan.sh) and overlay in the docker compose like:
 
 ```yaml
 ...
