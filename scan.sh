@@ -7,5 +7,10 @@ vendor=${vendor:-"fujitsu"}
 dpi=${dpi:-300}
 mode=${mode:-"Color"}
 
-# Run the scanning command
-/app/sane-scan-pdf/scan -v -d -x $vendor -r $dpi --mode $mode --skip-empty-pages -o /scans/$file_prefix-$now.pdf
+# Run the scanning command and save the output to a temporary file
+/app/sane-scan-pdf/scan -v -d -x $vendor -r $dpi --mode $mode --skip-empty-pages -o /tmp/$file_prefix-$now.pdf
+
+# Once the scan is complete, move the file to the output directory
+mv /tmp/$file_prefix-$now.pdf /scans/$file_prefix-$now.pdf
+
+# This is needed to ensure the file is ready to be imported by the next step.
