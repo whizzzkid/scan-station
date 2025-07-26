@@ -8,4 +8,4 @@ dpi=${dpi:-300}
 mode=${mode:-"Color"}
 
 # Run the scanning command
-/app/sane-scan-pdf/scan -d -x $vendor -r $dpi -v --mode $mode --crop -o /scans/$file_prefix-$now.pdf
+/app/sane-scan-pdf/scan -v -d -x $vendor -r $dpi --mode $mode --skip-empty-pages --unpaper -o /scans/$file_prefix-$now.pdf
