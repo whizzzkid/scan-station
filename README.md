@@ -16,8 +16,6 @@ These are pretty cheap to find used, I brought mine for CA$5 from a [local elect
 | [Fujitsu ScanSnap S1500 Internal](./assets/ScanSnap_S1500_Internal.jpg) | [![Fujitsu ScanSnap S1500 Tray](./assets/ScanSnap_S1500_Internal.jpg)](./assets/ScanSnap_S1500_Internal.jpg) |
 | [Fujitsu ScanSnap S1500 Closed](./assets/ScanSnap_S1500_Closed.jpg) | [![Fujitsu ScanSnap S1500 Closed](./assets/ScanSnap_S1500_Closed.jpg)](./assets/ScanSnap_S1500_Closed.jpg) |
 
-
-
 This is a duplex scanner (scans both sides at once) with a gravity fed tray and has a scan button on the device to start scanning.
 
 ### The Problem
@@ -48,6 +46,8 @@ services:
     hostname: scanner
     restart: always
     privileged: true
+    environment:
+      - TZ=${TZ}
     volumes:
       - /ingest:/scans
       - /var/run/dbus:/var/run/dbus
@@ -75,11 +75,28 @@ You can configure the DPI and Mode settings in the `docker-compose.yaml`:
 
 ```yaml
     environment:
-      - dpi=120       # defaults to 300
-      - mode=Gray     # defaults to 'Color'
+      - TZ='America/Edmonton'                 # defaults to 'Etc/UTC'
+      - dpi=120                               # defaults to 300
+      - mode=Gray                             # defaults to 'Color'
+      - file_prefix=scan                      # defaults to 'scan'
+      - date_format="%Y-%m-%d-%H%M%S-%3N-%Z"  # defaults to "%Y-%m-%d-%H%M%S-%3N-%Z"
 ```
 
-Or, if you want more flexibility, you can probably create your custom script and overlay in the docker compose like:
+Or, create a `.env` file in the same directory as `docker-compose.yaml` with the above variables, this will override the defaults.
+
+```sh
+# .env
+TZ='America/Edmonton'                         # defaults to 'Etc/UTC'
+dpi=120                                       # defaults to 300
+mode=Gray                                     # defaults to 'Color'
+file_prefix=scan                              # defaults to 'scan'
+date_format="%Y-%m-%d-%H%M%S-%3N-%Z"          # defaults to "%Y-%m-%d-%H%M%S-%3N-%Z"
+```
+
+> [!TIP]
+> The computed filename with defaults will be `scan-<YYYY>-<MM>-<DD>-<HHMMSS>-<3N>-<Z>.pdf`, for example `scan-2025-01-01-120000-123-UTC.pdf`.
+
+Or, if you want more flexibility, you can probably create your own [custom scan script](scan.sh) and overlay in the docker compose like:
 
 ```yaml
 ...
@@ -105,8 +122,8 @@ There are plenty of self-hosted solutions for document management available, two
 
 ## Acknowledgements
 
-- https://github.com/ep1cman/fujitsu-ix1300-scan-on-button inspiration for this work.
-- https://github.com/rocketraman/sane-scan-pdf makes scanning so simple.
+- <https://github.com/ep1cman/fujitsu-ix1300-scan-on-button> inspiration for this work.
+- <https://github.com/rocketraman/sane-scan-pdf> makes scanning so simple.
 
 ## License
 
