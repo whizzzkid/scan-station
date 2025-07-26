@@ -15,7 +15,7 @@ tmp_file="$tmp_output_dir/$file_name"
 output_file="/scans/$file_name"
 
 # Run the scanning command and save the output to a temporary file
-/app/sane-scan-pdf/scan -v -d -x $vendor -r $dpi --mode $mode --skip-empty-pages -o "$tmp_file"
+/app/sane-scan-pdf/scan -v -d -x $vendor -r $dpi --mode $mode --skip-empty-pages --crop -o "$tmp_file"
 
 if [ $? -ne 0 ]; then
     echo "Error: Scan command failed. Exiting."
