@@ -1,17 +1,18 @@
 FROM debian:bookworm-slim
 
 WORKDIR /app
+ENV TZ=${TZ-"America/Edmonton"}
 
 # Dependencies based on: https://github.com/rocketraman/sane-scan-pdf/wiki/Dependencies-Installation
 RUN apt update &&         \
     apt upgrade -y &&     \
     apt install -y        \
       bc                  \
-      ffmpeg              \
       ghostscript         \
       git                 \
       imagemagick         \
       netpbm              \
+      parallel            \
       poppler-utils       \
       sane                \
       sane-utils          \
@@ -19,7 +20,6 @@ RUN apt update &&         \
       time                \
       tzdata              \
       units               \
-      unpaper             \
       usbutils            \
       util-linux
 
