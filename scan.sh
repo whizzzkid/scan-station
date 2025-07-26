@@ -6,9 +6,16 @@ file_prefix="${file_prefix:-"scan"}"
 vendor=${vendor:-"fujitsu"}
 dpi=${dpi:-300}
 mode=${mode:-"Color"}
+tmp_output_dir="/tmp/sane-scan-pdf-output"
+file_name="${file_prefix}-${now}.pdf"
+
+# Ensure the output directory exists
+mkdir -p "$tmp_output_dir"
+tmp_file="$tmp_output_dir/$file_name"
+output_file="/scans/$file_name"
 
 # Run the scanning command and save the output to a temporary file
-/app/sane-scan-pdf/scan -v -d -x $vendor -r $dpi --mode $mode --skip-empty-pages -o /tmp/$file_prefix-$now.pdf
+/app/sane-scan-pdf/scan -v -d -x $vendor -r $dpi --mode $mode --skip-empty-pages -o "$tmp_file"
 
 if [ $? -ne 0 ]; then
     echo "Error: Scan command failed. Exiting."
@@ -16,11 +23,11 @@ if [ $? -ne 0 ]; then
 fi
 
 # Once the scan is complete, move the file to the output directory
-echo "Scan completed successfully. Moving file to /scans/$file_prefix-$now.pdf"
-mv /tmp/$file_prefix-$now.pdf /scans/$file_prefix-$now.pdf
+echo "Scan completed successfully to $tmp_file. Moving file to $output_file"
+mv "$tmp_file" "$output_file"
 
 if [ $? -ne 0 ]; then
-    echo "Error: Failed to move the file to /scans. Please check permissions or directory existence." >&2
+    echo "Error: Failed to move the file to $output_file. Please check permissions or directory existence." >&2
     exit 1
 fi
 
