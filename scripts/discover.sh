@@ -1,6 +1,5 @@
 #!/bin/sh
 
-vendor=${vendor:-"fujitsu"}
 device=$(lsusb | grep -i $vendor | awk '{print $6}')
 
 if [ -z "$device" ]; then

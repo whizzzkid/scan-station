@@ -1,0 +1,21 @@
+{
+  "name": "scan-station",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "compile": "bun build --compile --outfile dist/scan --minify src/scan.ts",
+    "format": "biome lint --write && biome format --write"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.4",
+    "@types/bun": "latest",
+    "lefthook": "1.12.3"
+  },
+  "peerDependencies": {
+    "typescript": "5"
+  },
+  "dependencies": {
+    "@topcli/spinner": "3.0.0"
+  }
+}

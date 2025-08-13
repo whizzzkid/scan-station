@@ -1,3 +1,13 @@
+FROM oven/bun as build
+
+WORKDIR /build
+
+ENV NODE_ENV=production
+COPY . .
+RUN bun install --frozen-lockfile && \
+    bun test --ci && \
+    bun compile
+
 FROM debian:bookworm-slim
 
 WORKDIR /app
@@ -23,11 +33,13 @@ RUN apt update &&         \
       util-linux
 
 ENV TZ=${TZ-"America/Edmonton"}
+ENV vendor=${vendor-"fujitsu"}
+
 RUN git clone https://github.com/rocketraman/sane-scan-pdf.git --depth 1
 
-COPY scanbd.conf /etc/scanbd/scanbd.conf
-COPY scan.sh /etc/scanbd/scripts/scan.sh
-COPY discover.sh /app/discover.sh
+COPY conf/scanbd.conf /etc/scanbd/scanbd.conf
+COPY scripts/discover.sh /app/discover.sh
+COPY --from=build /build/dist/scan /etc/scanbd/scripts/scan
 
 RUN chmod +x /etc/scanbd/scripts/scan.sh && \
     chmod +x /app/discover.sh

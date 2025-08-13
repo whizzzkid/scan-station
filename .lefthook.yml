@@ -1,0 +1,7 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - run: bun format {staged_files}
+      glob:
+        - "*.ts"
+      stage_fixed: true
