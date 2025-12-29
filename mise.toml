@@ -1,0 +1,4 @@
+[tools]
+just = "1.45.0"
+lefthook = "2.0.13"
+rust = "1.92.0"

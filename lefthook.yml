@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - run: just fmt && just lint
+      name: "Run formatter and linter"
+
+pre-push:
+  parallel: true
+  jobs:
+    - run: just check
+      name: "Type-check code"
+    - run: just test
+      name: "Run tests"
+    - run: just build
+      name: "Build project"

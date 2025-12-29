@@ -1,0 +1,16 @@
+[package]
+name = "scanner"
+version = "0.1.0"
+edition = "2024"
+
+[profile.release]
+debug = false
+opt-level = "z"
+lto = true
+strip = "symbols"
+panic = "abort"
+
+[dependencies]
+just = "1.45.0"
+kdam = "0.6.3"
+reqwest = { version = "0.12.28", features = ["blocking", "json", "rustls-tls"] }
