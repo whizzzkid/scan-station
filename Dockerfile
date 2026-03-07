@@ -13,7 +13,19 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# System dependencies for SANE scanning (no-install-recommends for minimal size)
+# Runtime deps for sane-scan-pdf + scan-station
+#   bc            — empty page detection math
+#   ca-certificates — TLS root certs for HTTPS backend uploads
+#   ghostscript   — ps2pdf (PostScript -> PDF)
+#   imagemagick   — convert (image processing, crop, contrast)
+#   netpbm        — pnmtops (PNM -> PostScript)
+#   poppler-utils — pdfunite (merge scanned pages)
+#   sane-utils    — scanadf (scanner control)
+#   scanbd        — button press daemon
+#   tzdata        — timezone support for TZ env var
+#   units         — DPI unit conversion in sane-scan-pdf
+#   usbutils      — lsusb for discover-scanner
+#   util-linux    — flock for scan synchronization
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
       bc \
@@ -22,17 +34,14 @@ RUN apt-get update && \
       git \
       imagemagick \
       netpbm \
-      parallel \
       poppler-utils \
-      sane \
       sane-utils \
       scanbd \
       tzdata \
+      units \
       usbutils \
       util-linux && \
-    # Clone scan engine (only reason git is installed)
     git clone --depth 1 https://github.com/rocketraman/sane-scan-pdf.git /app/sane-scan-pdf && \
-    # Remove git and clean up
     apt-get purge -y git && \
     apt-get autoremove -y && \
     apt-get clean && \
