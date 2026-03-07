@@ -219,19 +219,90 @@ fn substitute_env_vars(input: &str) -> Result<String> {
     Ok(output_lines.join("\n"))
 }
 
-/// Load configuration from a TOML file with `${ENV_VAR}` substitution.
+/// Load configuration with a three-tier fallback:
+///
+/// 1. If the TOML file at `path` exists -> load and parse it
+/// 2. If no file -> build config from environment variables with defaults
+/// 3. CLI flags override both (handled by the caller)
+///
+/// Docker users can run with just env vars (e.g., `SCAN_DPI=600`)
+/// and no config file. Power users mount a TOML for multi-backend setups.
 pub fn load(path: &Path) -> Result<AppConfig> {
+    if path.exists() {
+        tracing::info!(path = %path.display(), "loading config from file");
+        load_from_file(path)
+    } else {
+        tracing::info!("no config file found, using environment variables and defaults");
+        Ok(load_from_env())
+    }
+}
+
+fn load_from_file(path: &Path) -> Result<AppConfig> {
     let raw = std::fs::read_to_string(path).map_err(|e| {
         ScanStationError::Config(format!("failed to read {}: {e}", path.display()))
     })?;
 
     let substituted = substitute_env_vars(&raw)?;
 
-    let config: AppConfig = toml::from_str(&substituted).map_err(|e| {
+    let mut config: AppConfig = toml::from_str(&substituted).map_err(|e| {
         ScanStationError::Config(format!("failed to parse {}: {e}", path.display()))
     })?;
 
+    apply_env_overrides(&mut config);
     Ok(config)
+}
+
+/// Build config entirely from environment variables with sensible defaults.
+///
+/// Recognized env vars:
+///   SCAN_VENDOR        scanner vendor (default: fujitsu)
+///   SCAN_DPI           scan resolution (default: 300)
+///   SCAN_MODE          color mode (default: Color)
+///   SCAN_FILE_PREFIX   filename prefix (default: scan)
+///   SCAN_DATE_FORMAT   chrono timestamp format
+///   SCAN_PROGRAM       path to sane-scan-pdf binary
+///   SCAN_TMP_DIR       temp directory for scan output
+///   SCAN_OUTPUT_DIR    filesystem backend path (default: /scans)
+fn load_from_env() -> AppConfig {
+    let mut config = AppConfig {
+        scan: ScanConfig::default(),
+        backends: vec![BackendConfig::Filesystem(FilesystemConfig {
+            path: PathBuf::from(
+                std::env::var("SCAN_OUTPUT_DIR").unwrap_or_else(|_| "/scans".into()),
+            ),
+            retry: RetryConfig::default(),
+        })],
+    };
+
+    apply_env_overrides(&mut config);
+    config
+}
+
+/// Apply SCAN_* environment variable overrides on top of any config.
+fn apply_env_overrides(config: &mut AppConfig) {
+    if let Ok(v) = std::env::var("SCAN_VENDOR") {
+        config.scan.vendor = v;
+    }
+    if let Ok(v) = std::env::var("SCAN_DPI") {
+        if let Ok(dpi) = v.parse() {
+            config.scan.dpi = dpi;
+        }
+    }
+    if let Ok(v) = std::env::var("SCAN_MODE") {
+        config.scan.mode = v;
+    }
+    if let Ok(v) = std::env::var("SCAN_FILE_PREFIX") {
+        config.scan.file_prefix = v;
+    }
+    if let Ok(v) = std::env::var("SCAN_DATE_FORMAT") {
+        config.scan.date_format = v;
+    }
+    if let Ok(v) = std::env::var("SCAN_PROGRAM") {
+        config.scan.scan_program = v;
+    }
+    if let Ok(v) = std::env::var("SCAN_TMP_DIR") {
+        config.scan.tmp_dir = PathBuf::from(v);
+    }
 }
 
 /// Load configuration from a TOML string (useful for tests).
@@ -372,5 +443,55 @@ path = "/scans"
 "#;
         let err = load_from_str(toml).unwrap_err();
         assert!(err.to_string().contains("failed to parse"), "got: {err}");
+    }
+
+    #[test]
+    fn load_from_env_returns_defaults() {
+        let config = load_from_env();
+        assert_eq!(config.scan.vendor, "fujitsu");
+        assert_eq!(config.scan.dpi, 300);
+        assert_eq!(config.backends.len(), 1);
+        match &config.backends[0] {
+            BackendConfig::Filesystem(fs) => assert_eq!(fs.path, PathBuf::from("/scans")),
+            #[allow(unreachable_patterns)]
+            _ => panic!("expected filesystem backend"),
+        }
+    }
+
+    #[test]
+    fn env_overrides_apply_to_scan_config() {
+        unsafe {
+            std::env::set_var("SCAN_VENDOR", "canon");
+            std::env::set_var("SCAN_DPI", "600");
+            std::env::set_var("SCAN_MODE", "Gray");
+        }
+        let config = load_from_env();
+        assert_eq!(config.scan.vendor, "canon");
+        assert_eq!(config.scan.dpi, 600);
+        assert_eq!(config.scan.mode, "Gray");
+        unsafe {
+            std::env::remove_var("SCAN_VENDOR");
+            std::env::remove_var("SCAN_DPI");
+            std::env::remove_var("SCAN_MODE");
+        }
+    }
+
+    #[test]
+    fn env_output_dir_overrides_filesystem_path() {
+        unsafe { std::env::set_var("SCAN_OUTPUT_DIR", "/custom/path") };
+        let config = load_from_env();
+        match &config.backends[0] {
+            BackendConfig::Filesystem(fs) => assert_eq!(fs.path, PathBuf::from("/custom/path")),
+            #[allow(unreachable_patterns)]
+            _ => panic!("expected filesystem backend"),
+        }
+        unsafe { std::env::remove_var("SCAN_OUTPUT_DIR") };
+    }
+
+    #[test]
+    fn load_falls_back_to_env_when_no_file() {
+        let config = load(Path::new("/nonexistent/config.toml")).unwrap();
+        assert_eq!(config.scan.vendor, "fujitsu");
+        assert_eq!(config.backends.len(), 1);
     }
 }

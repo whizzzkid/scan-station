@@ -42,15 +42,27 @@ RUN apt-get update && \
 COPY --from=builder /build/target/release/scan-station /usr/local/bin/scan-station
 COPY --from=builder /build/target/release/discover-scanner /usr/local/bin/discover-scanner
 
-# Copy config files
+# Copy scanbd config
 COPY conf/scanbd.conf /etc/scanbd/scanbd.conf
-COPY config.example.toml /etc/scan-station/config.toml
 
-# Create scanbd trigger script
+# Create scanbd trigger script and directories
 RUN printf '#!/bin/sh\nexec scan-station scan\n' \
       > /etc/scanbd/scripts/scan-station && \
     chmod +x /etc/scanbd/scripts/scan-station && \
     mkdir -p /scans /etc/scan-station
+
+# Works out of the box with just env vars — no config file required.
+# For multi-backend setups, mount a TOML config at /etc/scan-station/config.toml
+#
+# Scan settings via env vars:
+#   SCAN_VENDOR       (default: fujitsu)
+#   SCAN_DPI          (default: 300)
+#   SCAN_MODE         (default: Color)
+#   SCAN_FILE_PREFIX  (default: scan)
+#   SCAN_OUTPUT_DIR   (default: /scans)
+#
+# For backend-specific secrets (used in TOML config):
+#   PAPRA_API_KEY, PAPERLESS_TOKEN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 
 ENV TZ=Etc/UTC
 VOLUME ["/scans", "/etc/scan-station"]

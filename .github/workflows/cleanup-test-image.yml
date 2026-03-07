@@ -1,0 +1,56 @@
+name: Cleanup test image on PR merge
+
+on:
+  pull_request:
+    types: [closed]
+  delete:
+
+permissions:
+  packages: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Derive tag to delete
+        id: meta
+        env:
+          # For PR close events, use the head branch name
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          # For branch delete events, use the ref name
+          EVENT_REF: ${{ github.event.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "${EVENT_NAME}" = "pull_request" ]; then
+            BRANCH="${PR_HEAD_REF}"
+          else
+            BRANCH="${EVENT_REF}"
+          fi
+          TAG=$(echo "${BRANCH}" | sed 's|/|-|g')
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Cleaning up test image tag: ${TAG}"
+
+      - name: Delete test image from GHCR
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          PACKAGE_NAME=$(echo "${REPO}" | cut -d'/' -f2)
+          OWNER=$(echo "${REPO}" | cut -d'/' -f1)
+
+          # List versions and find the one matching our tag
+          VERSION_ID=$(gh api \
+            "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+            --jq ".[] | select(.metadata.container.tags[] == \"${TAG}\") | .id" \
+            2>/dev/null || true)
+
+          if [ -n "${VERSION_ID}" ]; then
+            echo "Deleting package version ${VERSION_ID} (tag: ${TAG})"
+            gh api \
+              --method DELETE \
+              "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+              || echo "Failed to delete (may need org-level permissions)"
+          else
+            echo "No package version found with tag: ${TAG}"
+          fi

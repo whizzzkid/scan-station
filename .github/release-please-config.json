@@ -1,0 +1,13 @@
+{
+  "packages": {
+    ".": {
+      "release-type": "rust",
+      "bump-minor-pre-major": false,
+      "bump-patch-for-minor-pre-major": false,
+      "extra-files": [
+        "crates/discover-scanner/Cargo.toml",
+        "crates/scan-station/Cargo.toml"
+      ]
+    }
+  }
+}

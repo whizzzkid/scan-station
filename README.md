@@ -13,6 +13,8 @@ Headless scanning server for Fujitsu ScanSnap and similar devices. Press the but
 
 ## Quick Start (Docker)
 
+**No config file needed.** The image works out of the box — just mount a volume for your scans:
+
 ```yaml
 # docker-compose.yaml
 services:
@@ -26,7 +28,6 @@ services:
       - TZ=America/Edmonton
     volumes:
       - /ingest:/scans
-      - ./config.toml:/etc/scan-station/config.toml:ro
       - /var/run/dbus:/var/run/dbus
 ```
 
@@ -34,13 +35,51 @@ services:
 docker compose up -d
 ```
 
+Scanned PDFs land in `/ingest` on your host. That's it.
+
 ## Configuration
 
-scan-station uses a TOML config file mounted at `/etc/scan-station/config.toml`.
+scan-station has three configuration layers (each overrides the previous):
 
-Secrets use `${ENV_VAR}` syntax — they're resolved from environment variables at runtime, so the config file is safe to commit.
+1. **Built-in defaults** — works with zero config (Fujitsu, 300 DPI, Color, saves to `/scans/`)
+2. **Environment variables** — override scan settings via Docker env vars
+3. **TOML config file** — mount at `/etc/scan-station/config.toml` for multi-backend setups
 
-### Minimal Config (filesystem only)
+### Environment Variables (simplest)
+
+Customize scan settings without any config file:
+
+```yaml
+environment:
+  - TZ=America/Edmonton
+  - SCAN_VENDOR=fujitsu        # default: fujitsu
+  - SCAN_DPI=600               # default: 300
+  - SCAN_MODE=Gray             # default: Color
+  - SCAN_FILE_PREFIX=invoice   # default: scan
+  - SCAN_OUTPUT_DIR=/scans     # default: /scans
+```
+
+| Env Var | Default | Description |
+|---------|---------|-------------|
+| `SCAN_VENDOR` | `fujitsu` | Scanner vendor for sane-scan-pdf |
+| `SCAN_DPI` | `300` | Scan resolution |
+| `SCAN_MODE` | `Color` | Color, Gray, or Lineart |
+| `SCAN_FILE_PREFIX` | `scan` | Filename prefix |
+| `SCAN_DATE_FORMAT` | `%Y-%m-%d-%H%M%S-%3f-%Z` | Chrono timestamp format |
+| `SCAN_OUTPUT_DIR` | `/scans` | Filesystem backend output path |
+| `SCAN_PROGRAM` | `/app/sane-scan-pdf/scan` | Path to scan engine |
+| `SCAN_TMP_DIR` | `/tmp/scan-station` | Temp directory |
+
+### TOML Config File (for multi-backend setups)
+
+For advanced setups (uploading to Papra, S3, etc.), mount a TOML config file:
+
+```yaml
+volumes:
+  - ./config.toml:/etc/scan-station/config.toml:ro
+```
+
+Secrets in the TOML use `${ENV_VAR}` syntax — resolved from Docker environment at runtime, so the config file is safe to commit.
 
 ```toml
 [scan]
@@ -53,20 +92,7 @@ type = "filesystem"
 path = "/scans"
 ```
 
-This is the default — scanned PDFs land in `/scans/` (mounted as a Docker volume).
-
-### Scan Settings
-
-```toml
-[scan]
-vendor = "fujitsu"           # scanner vendor (used by sane-scan-pdf)
-dpi = 300                    # scan resolution
-mode = "Color"               # Color, Gray, or Lineart
-file_prefix = "scan"         # filename prefix
-date_format = "%Y-%m-%d-%H%M%S-%3f-%Z"  # chrono timestamp format
-scan_program = "/app/sane-scan-pdf/scan" # path to scan engine
-tmp_dir = "/tmp/scan-station"            # temp directory for scan output
-```
+Env vars (`SCAN_DPI`, etc.) still override values from the TOML file.
 
 ## Backends
 
