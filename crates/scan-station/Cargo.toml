@@ -11,7 +11,7 @@ filesystem = []
 papra = ["dep:reqwest"]
 paperless = ["dep:reqwest"]
 s3 = ["dep:reqwest", "dep:hmac", "dep:sha2", "dep:hex"]
-gdrive = ["dep:reqwest", "dep:jsonwebtoken"]
+gdrive = ["dep:reqwest", "dep:jsonwebtoken", "dep:serde_json"]
 http-backends = ["papra", "paperless"]
 cloud-backends = ["s3", "gdrive"]
 all-backends = ["filesystem", "http-backends", "cloud-backends"]
@@ -29,7 +29,8 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 regex = { version = "1", default-features = false, features = ["std"] }
 
 # Optional: pulled only when a backend feature enables them
-reqwest = { version = "0.12", default-features = false, features = ["multipart", "rustls-tls"], optional = true }
+reqwest = { version = "0.12", default-features = false, features = ["multipart", "rustls-tls", "json"], optional = true }
+serde_json = { version = "1", optional = true }
 hmac = { version = "0.12", optional = true }
 sha2 = { version = "0.10", optional = true }
 hex = { version = "0.4", optional = true }
