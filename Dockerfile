@@ -1,5 +1,5 @@
 # Stage 1: Build Rust binaries
-FROM rust:1.85-slim-bookworm AS builder
+FROM rust:1.88-slim-bookworm AS builder
 
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
@@ -57,10 +57,10 @@ COPY --from=builder /build/target/release/discover-scanner /usr/local/bin/discov
 COPY conf/scanbd.conf /etc/scanbd/scanbd.conf
 
 # Create scanbd trigger script and directories
-RUN printf '#!/bin/sh\nexec scan-station scan\n' \
+RUN mkdir -p /etc/scanbd/scripts /scans /etc/scan-station && \
+    printf '#!/bin/sh\nexec scan-station scan\n' \
       > /etc/scanbd/scripts/scan-station && \
-    chmod +x /etc/scanbd/scripts/scan-station && \
-    mkdir -p /scans /etc/scan-station
+    chmod +x /etc/scanbd/scripts/scan-station
 
 # Works out of the box with just env vars — no config file required.
 # For multi-backend setups, mount a TOML config at /etc/scan-station/config.toml
