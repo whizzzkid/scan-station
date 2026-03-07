@@ -65,7 +65,7 @@ fn default_file_prefix() -> String {
     "scan".into()
 }
 fn default_date_format() -> String {
-    "%Y-%m-%d-%H%M%S-%3N-%Z".into()
+    "%Y-%m-%d-%H%M%S-%3f-%Z".into()
 }
 fn default_scan_program() -> String {
     "/app/sane-scan-pdf/scan".into()
