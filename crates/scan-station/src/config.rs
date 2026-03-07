@@ -178,22 +178,35 @@ pub struct GoogleDriveConfig {
 }
 
 /// Substitute `${VAR_NAME}` patterns in a string with environment variable values.
+///
+/// Skips TOML comment lines (lines whose first non-whitespace character is `#`).
 fn substitute_env_vars(input: &str) -> Result<String> {
     let re = Regex::new(r"\$\{([^}]+)\}").expect("valid regex");
-    let mut result = input.to_owned();
+    let mut output_lines = Vec::new();
     let mut errors = Vec::new();
 
-    for cap in re.captures_iter(input) {
-        let full_match = &cap[0];
-        let var_name = &cap[1];
-        match std::env::var(var_name) {
-            Ok(value) => {
-                result = result.replace(full_match, &value);
-            }
-            Err(_) => {
-                errors.push(var_name.to_owned());
+    for line in input.lines() {
+        if line.trim_start().starts_with('#') {
+            output_lines.push(line.to_owned());
+            continue;
+        }
+
+        let mut result_line = line.to_owned();
+        for cap in re.captures_iter(line) {
+            let full_match = &cap[0];
+            let var_name = &cap[1];
+            match std::env::var(var_name) {
+                Ok(value) => {
+                    result_line = result_line.replace(full_match, &value);
+                }
+                Err(_) => {
+                    if !errors.contains(&var_name.to_owned()) {
+                        errors.push(var_name.to_owned());
+                    }
+                }
             }
         }
+        output_lines.push(result_line);
     }
 
     if !errors.is_empty() {
@@ -203,7 +216,7 @@ fn substitute_env_vars(input: &str) -> Result<String> {
         )));
     }
 
-    Ok(result)
+    Ok(output_lines.join("\n"))
 }
 
 /// Load configuration from a TOML file with `${ENV_VAR}` substitution.
