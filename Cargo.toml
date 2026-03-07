@@ -1,0 +1,9 @@
+[workspace]
+members = ["crates/discover-scanner", "crates/scan-station"]
+resolver = "2"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = "symbols"
+panic = "abort"
