@@ -1,5 +1,3 @@
-#![cfg(feature = "gdrive")]
-
 use crate::config::GoogleDriveConfig;
 use crate::error::{Result, ScanStationError};
 use async_trait::async_trait;
@@ -53,9 +51,9 @@ impl GoogleDriveBackend {
                 ScanStationError::Config(format!("gdrive: invalid credentials file: {e}"))
             })?;
 
-        let client = Client::builder()
-            .build()
-            .map_err(|e| ScanStationError::Config(format!("gdrive: failed to build HTTP client: {e}")))?;
+        let client = Client::builder().build().map_err(|e| {
+            ScanStationError::Config(format!("gdrive: failed to build HTTP client: {e}"))
+        })?;
 
         Ok(Self {
             client,
@@ -70,10 +68,10 @@ impl GoogleDriveBackend {
         // Check cache
         {
             let cache = self.token_cache.read().await;
-            if let Some(ref token) = *cache {
-                if token.expires_at > std::time::Instant::now() {
-                    return Ok(token.access_token.clone());
-                }
+            if let Some(ref token) = *cache
+                && token.expires_at > std::time::Instant::now()
+            {
+                return Ok(token.access_token.clone());
             }
         }
 
@@ -100,8 +98,8 @@ impl GoogleDriveBackend {
         let key = jsonwebtoken::EncodingKey::from_rsa_pem(self.credentials.private_key.as_bytes())
             .map_err(|e| ScanStationError::Config(format!("gdrive: invalid private key: {e}")))?;
 
-        let jwt = jsonwebtoken::encode(&header, &claims, &key)
-            .map_err(|e| ScanStationError::Upload {
+        let jwt =
+            jsonwebtoken::encode(&header, &claims, &key).map_err(|e| ScanStationError::Upload {
                 backend: "google_drive".into(),
                 source: format!("JWT encoding failed: {e}").into(),
             })?;
@@ -129,10 +127,11 @@ impl GoogleDriveBackend {
             });
         }
 
-        let token_resp: TokenResponse = resp.json().await.map_err(|e| ScanStationError::Upload {
-            backend: "google_drive".into(),
-            source: format!("invalid token response: {e}").into(),
-        })?;
+        let token_resp: TokenResponse =
+            resp.json().await.map_err(|e| ScanStationError::Upload {
+                backend: "google_drive".into(),
+                source: format!("invalid token response: {e}").into(),
+            })?;
 
         Ok(CachedToken {
             access_token: token_resp.access_token,
@@ -207,9 +206,10 @@ impl super::Backend for GoogleDriveBackend {
 
     async fn validate(&self) -> Result<()> {
         // Validate by attempting a token exchange
-        let _token = self.get_token().await.map_err(|e| {
-            ScanStationError::Config(format!("gdrive: token exchange failed: {e}"))
-        })?;
+        let _token = self
+            .get_token()
+            .await
+            .map_err(|e| ScanStationError::Config(format!("gdrive: token exchange failed: {e}")))?;
         Ok(())
     }
 }
@@ -268,10 +268,9 @@ Ci3xr3R49dMxn/hyqyJqF5n2DF5B4gN/ZmybiT/sCnCHi/YFBnKw
 
         // Mock token endpoint
         Mock::given(method("POST"))
-            .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(serde_json::json!({"access_token": "mock-token", "expires_in": 3600})),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                serde_json::json!({"access_token": "mock-token", "expires_in": 3600}),
+            ))
             .mount(&token_server)
             .await;
 
@@ -283,8 +282,7 @@ Ci3xr3R49dMxn/hyqyJqF5n2DF5B4gN/ZmybiT/sCnCHi/YFBnKw
                 "multipart/related; boundary=scan_station_boundary",
             ))
             .respond_with(
-                ResponseTemplate::new(200)
-                    .set_body_json(serde_json::json!({"id": "file-123"})),
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"id": "file-123"})),
             )
             .mount(&upload_server)
             .await;
@@ -358,6 +356,9 @@ Ci3xr3R49dMxn/hyqyJqF5n2DF5B4gN/ZmybiT/sCnCHi/YFBnKw
         };
 
         let err = GoogleDriveBackend::new(&config).unwrap_err();
-        assert!(err.to_string().contains("invalid credentials"), "got: {err}");
+        assert!(
+            err.to_string().contains("invalid credentials"),
+            "got: {err}"
+        );
     }
 }

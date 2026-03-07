@@ -1,5 +1,3 @@
-#![cfg(feature = "papra")]
-
 use crate::config::PapraConfig;
 use crate::error::{Result, ScanStationError};
 use async_trait::async_trait;
@@ -16,9 +14,9 @@ pub struct PapraBackend {
 
 impl PapraBackend {
     pub fn new(config: &PapraConfig) -> Result<Self> {
-        let client = Client::builder()
-            .build()
-            .map_err(|e| ScanStationError::Config(format!("papra: failed to build HTTP client: {e}")))?;
+        let client = Client::builder().build().map_err(|e| {
+            ScanStationError::Config(format!("papra: failed to build HTTP client: {e}"))
+        })?;
 
         Ok(Self {
             client,
@@ -105,9 +103,10 @@ impl super::Backend for PapraBackend {
             .map_err(|e| ScanStationError::Config(format!("papra: cannot reach {url}: {e}")))?;
 
         if !resp.status().is_success() {
-            return Err(ScanStationError::Config(
-                format!("papra: validation failed (HTTP {})", resp.status()),
-            ));
+            return Err(ScanStationError::Config(format!(
+                "papra: validation failed (HTTP {})",
+                resp.status()
+            )));
         }
 
         Ok(())

@@ -182,9 +182,8 @@ pub struct GoogleDriveConfig {
 /// Skips TOML comment lines (lines whose first non-whitespace character is `#`).
 /// Uses `replace_all` with a closure for single-pass substitution (no double-replace risk).
 fn substitute_env_vars(input: &str) -> Result<String> {
-    let re = Regex::new(r"\$\{([^}]+)\}").map_err(|e| {
-        ScanStationError::Config(format!("invalid regex: {e}"))
-    })?;
+    let re = Regex::new(r"\$\{([^}]+)\}")
+        .map_err(|e| ScanStationError::Config(format!("invalid regex: {e}")))?;
     let mut output_lines = Vec::new();
     let mut errors = Vec::new();
 
@@ -238,9 +237,8 @@ pub fn load(path: &Path) -> Result<AppConfig> {
 }
 
 fn load_from_file(path: &Path) -> Result<AppConfig> {
-    let raw = std::fs::read_to_string(path).map_err(|e| {
-        ScanStationError::Config(format!("failed to read {}: {e}", path.display()))
-    })?;
+    let raw = std::fs::read_to_string(path)
+        .map_err(|e| ScanStationError::Config(format!("failed to read {}: {e}", path.display())))?;
 
     let substituted = substitute_env_vars(&raw)?;
 
@@ -283,10 +281,8 @@ fn apply_env_overrides(config: &mut AppConfig) {
     if let Ok(v) = std::env::var("SCAN_VENDOR") {
         config.scan.vendor = v;
     }
-    if let Ok(v) = std::env::var("SCAN_DPI") {
-        if let Ok(dpi) = v.parse() {
-            config.scan.dpi = dpi;
-        }
+    if let Some(dpi) = std::env::var("SCAN_DPI").ok().and_then(|v| v.parse().ok()) {
+        config.scan.dpi = dpi;
     }
     if let Ok(v) = std::env::var("SCAN_MODE") {
         config.scan.mode = v;

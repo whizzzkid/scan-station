@@ -71,7 +71,11 @@ fn run(cli: &Cli) -> Result<(), String> {
     std::fs::write(&scanbd_path, &device_line)
         .map_err(|e| format!("failed to write {}: {e}", scanbd_path.display()))?;
 
-    eprintln!("wrote config to {} and {}", sane_path.display(), scanbd_path.display());
+    eprintln!(
+        "wrote config to {} and {}",
+        sane_path.display(),
+        scanbd_path.display()
+    );
     Ok(())
 }
 
@@ -99,13 +103,25 @@ Bus 002 Device 002: ID 0bda:8153 Realtek RTL8153 Gigabit Ethernet";
     #[test]
     fn finds_fujitsu_scanner() {
         let device = find_device(SAMPLE_LSUSB, "fujitsu").unwrap();
-        assert_eq!(device, UsbDevice { vid: "04c5".into(), pid: "1156".into() });
+        assert_eq!(
+            device,
+            UsbDevice {
+                vid: "04c5".into(),
+                pid: "1156".into()
+            }
+        );
     }
 
     #[test]
     fn finds_case_insensitive() {
         let device = find_device(SAMPLE_LSUSB, "FUJITSU").unwrap();
-        assert_eq!(device, UsbDevice { vid: "04c5".into(), pid: "1156".into() });
+        assert_eq!(
+            device,
+            UsbDevice {
+                vid: "04c5".into(),
+                pid: "1156".into()
+            }
+        );
     }
 
     #[test]
@@ -130,7 +146,13 @@ Bus 002 Device 002: ID 0bda:8153 Realtek RTL8153 Gigabit Ethernet";
 Bus 001 Device 002: ID aaaa:bbbb Fujitsu First
 Bus 001 Device 003: ID cccc:dddd Fujitsu Second";
         let device = find_device(multi, "fujitsu").unwrap();
-        assert_eq!(device, UsbDevice { vid: "aaaa".into(), pid: "bbbb".into() });
+        assert_eq!(
+            device,
+            UsbDevice {
+                vid: "aaaa".into(),
+                pid: "bbbb".into()
+            }
+        );
     }
 
     #[test]
@@ -143,7 +165,10 @@ Bus 001 Device 003: ID cccc:dddd Fujitsu Second";
         };
 
         // We can't run lsusb in CI, so test the write logic directly
-        let device = UsbDevice { vid: "04c5".into(), pid: "1156".into() };
+        let device = UsbDevice {
+            vid: "04c5".into(),
+            pid: "1156".into(),
+        };
         let device_line = format!("usb 0x{} 0x{}\n", device.vid, device.pid);
 
         let sane_path = cli.sane_conf_dir.join("fujitsu.conf");
@@ -152,7 +177,13 @@ Bus 001 Device 003: ID cccc:dddd Fujitsu Second";
         let scanbd_path = cli.scanbd_conf_dir.join("fujitsu.conf");
         std::fs::write(&scanbd_path, &device_line).unwrap();
 
-        assert_eq!(std::fs::read_to_string(&sane_path).unwrap(), "usb 0x04c5 0x1156\n");
-        assert_eq!(std::fs::read_to_string(&scanbd_path).unwrap(), "usb 0x04c5 0x1156\n");
+        assert_eq!(
+            std::fs::read_to_string(&sane_path).unwrap(),
+            "usb 0x04c5 0x1156\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(&scanbd_path).unwrap(),
+            "usb 0x04c5 0x1156\n"
+        );
     }
 }

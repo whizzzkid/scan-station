@@ -35,12 +35,12 @@ impl super::Backend for FilesystemBackend {
             "copying file"
         );
 
-        tokio::fs::copy(src, &dest).await.map_err(|e| {
-            ScanStationError::Upload {
+        tokio::fs::copy(src, &dest)
+            .await
+            .map_err(|e| ScanStationError::Upload {
                 backend: "filesystem".into(),
                 source: format!("copy to {}: {e}", dest.display()).into(),
-            }
-        })?;
+            })?;
 
         Ok(())
     }

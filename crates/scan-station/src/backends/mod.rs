@@ -67,7 +67,11 @@ impl Uploader {
     /// Upload a file to all configured backends in parallel.
     ///
     /// Returns a result for every backend. One failure does not block others.
-    pub async fn upload_all(&self, path: &Path, retry_configs: &[RetryConfig]) -> Vec<UploadResult> {
+    pub async fn upload_all(
+        &self,
+        path: &Path,
+        retry_configs: &[RetryConfig],
+    ) -> Vec<UploadResult> {
         let mut set = tokio::task::JoinSet::new();
 
         for (i, backend) in self.backends.iter().enumerate() {
@@ -131,11 +135,9 @@ async fn retry_upload(backend: &dyn Backend, path: &Path, retry: &RetryConfig) -
         }
     }
 
-    Err(last_err.unwrap_or_else(|| {
-        ScanStationError::Upload {
-            backend: backend.name().into(),
-            source: "no attempts made".into(),
-        }
+    Err(last_err.unwrap_or_else(|| ScanStationError::Upload {
+        backend: backend.name().into(),
+        source: "no attempts made".into(),
     }))
 }
 
@@ -291,9 +293,7 @@ mod tests {
 
     #[tokio::test]
     async fn empty_backends_returns_empty() {
-        let uploader = Uploader {
-            backends: vec![],
-        };
+        let uploader = Uploader { backends: vec![] };
         let results = uploader.upload_all(Path::new("/fake.pdf"), &[]).await;
         assert!(results.is_empty());
     }

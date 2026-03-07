@@ -1,0 +1,22 @@
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      run: cargo fmt --all -- --check
+      name: "Check formatting"
+    lint:
+      run: cargo clippy --workspace --features all-backends -- -D warnings
+      name: "Clippy lint"
+
+pre-push:
+  parallel: true
+  commands:
+    test-default:
+      run: cargo test --workspace
+      name: "Test (default features)"
+    test-all:
+      run: cargo test --workspace --features all-backends
+      name: "Test (all backends)"
+    build:
+      run: cargo build --workspace --features all-backends
+      name: "Build check"

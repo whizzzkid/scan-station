@@ -45,7 +45,9 @@ pub async fn run(config: &ScanConfig) -> Result<PathBuf> {
         ])
         .output()
         .await
-        .map_err(|e| ScanStationError::Scan(format!("failed to execute {}: {e}", config.scan_program)))?;
+        .map_err(|e| {
+            ScanStationError::Scan(format!("failed to execute {}: {e}", config.scan_program))
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

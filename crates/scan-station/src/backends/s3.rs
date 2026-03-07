@@ -1,5 +1,3 @@
-#![cfg(feature = "s3")]
-
 use crate::config::S3Config;
 use crate::error::{Result, ScanStationError};
 use async_trait::async_trait;
@@ -34,9 +32,9 @@ impl S3Backend {
             .or_else(|| std::env::var("AWS_SECRET_ACCESS_KEY").ok())
             .ok_or_else(|| ScanStationError::Config("s3: secret_access_key is required".into()))?;
 
-        let client = Client::builder()
-            .build()
-            .map_err(|e| ScanStationError::Config(format!("s3: failed to build HTTP client: {e}")))?;
+        let client = Client::builder().build().map_err(|e| {
+            ScanStationError::Config(format!("s3: failed to build HTTP client: {e}"))
+        })?;
 
         Ok(Self {
             client,
@@ -52,7 +50,12 @@ impl S3Backend {
     /// Build the full URL for a given object key (already URI-encoded).
     fn object_url(&self, encoded_key: &str) -> String {
         match &self.endpoint {
-            Some(ep) => format!("{}/{}/{}", ep.trim_end_matches('/'), self.bucket, encoded_key),
+            Some(ep) => format!(
+                "{}/{}/{}",
+                ep.trim_end_matches('/'),
+                self.bucket,
+                encoded_key
+            ),
             None => format!(
                 "https://{}.s3.{}.amazonaws.com/{}",
                 self.bucket, self.region, encoded_key
@@ -63,12 +66,11 @@ impl S3Backend {
     /// Build the host header value.
     fn host(&self) -> String {
         match &self.endpoint {
-            Some(ep) => {
-                ep.trim_start_matches("https://")
-                    .trim_start_matches("http://")
-                    .trim_end_matches('/')
-                    .to_owned()
-            }
+            Some(ep) => ep
+                .trim_start_matches("https://")
+                .trim_start_matches("http://")
+                .trim_end_matches('/')
+                .to_owned(),
             None => format!("{}.s3.{}.amazonaws.com", self.bucket, self.region),
         }
     }
@@ -162,10 +164,7 @@ impl super::Backend for S3Backend {
     async fn validate(&self) -> Result<()> {
         let url = match &self.endpoint {
             Some(ep) => format!("{}/{}", ep.trim_end_matches('/'), self.bucket),
-            None => format!(
-                "https://{}.s3.{}.amazonaws.com",
-                self.bucket, self.region
-            ),
+            None => format!("https://{}.s3.{}.amazonaws.com", self.bucket, self.region),
         };
         let host = self.host();
         let now = chrono::Utc::now();
@@ -370,7 +369,10 @@ mod tests {
             .unwrap()
             .to_str()
             .unwrap();
-        assert!(auth.starts_with("AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/"), "got: {auth}");
+        assert!(
+            auth.starts_with("AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/"),
+            "got: {auth}"
+        );
         assert!(auth.contains("SignedHeaders=content-type;"), "got: {auth}");
         assert!(auth.contains("Signature="), "got: {auth}");
     }
@@ -445,8 +447,14 @@ mod tests {
             access_key: "AKID",
             secret_key: "SECRET",
         });
-        assert!(!sig.contains("content-type"), "HEAD sig should not include content-type: {sig}");
-        assert!(sig.contains("SignedHeaders=host;x-amz-content-sha256;x-amz-date"), "got: {sig}");
+        assert!(
+            !sig.contains("content-type"),
+            "HEAD sig should not include content-type: {sig}"
+        );
+        assert!(
+            sig.contains("SignedHeaders=host;x-amz-content-sha256;x-amz-date"),
+            "got: {sig}"
+        );
     }
 
     #[test]
@@ -463,7 +471,10 @@ mod tests {
             access_key: "AKID",
             secret_key: "SECRET",
         });
-        assert!(sig.contains("content-type;"), "PUT sig should include content-type: {sig}");
+        assert!(
+            sig.contains("content-type;"),
+            "PUT sig should include content-type: {sig}"
+        );
     }
 
     #[test]

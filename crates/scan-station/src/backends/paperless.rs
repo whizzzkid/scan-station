@@ -1,5 +1,3 @@
-#![cfg(feature = "paperless")]
-
 use crate::config::PaperlessConfig;
 use crate::error::{Result, ScanStationError};
 use async_trait::async_trait;
@@ -18,9 +16,9 @@ pub struct PaperlessBackend {
 
 impl PaperlessBackend {
     pub fn new(config: &PaperlessConfig) -> Result<Self> {
-        let client = Client::builder()
-            .build()
-            .map_err(|e| ScanStationError::Config(format!("paperless: failed to build HTTP client: {e}")))?;
+        let client = Client::builder().build().map_err(|e| {
+            ScanStationError::Config(format!("paperless: failed to build HTTP client: {e}"))
+        })?;
 
         Ok(Self {
             client,
@@ -117,9 +115,10 @@ impl super::Backend for PaperlessBackend {
             .map_err(|e| ScanStationError::Config(format!("paperless: cannot reach {url}: {e}")))?;
 
         if !resp.status().is_success() {
-            return Err(ScanStationError::Config(
-                format!("paperless: validation failed (HTTP {})", resp.status()),
-            ));
+            return Err(ScanStationError::Config(format!(
+                "paperless: validation failed (HTTP {})",
+                resp.status()
+            )));
         }
 
         Ok(())

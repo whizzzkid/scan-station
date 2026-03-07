@@ -22,10 +22,7 @@ pub enum ScanStationError {
     Io(#[from] std::io::Error),
 
     #[error("command failed (exit {code:?}): {stderr}")]
-    Command {
-        code: Option<i32>,
-        stderr: String,
-    },
+    Command { code: Option<i32>, stderr: String },
 }
 
 pub type Result<T> = std::result::Result<T, ScanStationError>;
