@@ -37,6 +37,8 @@ docker compose up -d
 
 Scanned PDFs land in `/ingest` on your host. That's it.
 
+See the [example/](example/) folder for a complete setup with `docker-compose.yml`, `.env`, and `config.toml` ready to copy to your server.
+
 ## Configuration
 
 scan-station has three configuration layers (each overrides the previous):
