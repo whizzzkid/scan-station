@@ -2,43 +2,19 @@
 
 [![Build](https://github.com/whizzzkid/scan-station/actions/workflows/release.yml/badge.svg?branch=main)](https://github.com/whizzzkid/scan-station/actions/workflows/release.yml)
 
-Headless Scanning Server For Fujitsu ScanSnap and Similar Devices.
+Headless scanning server for Fujitsu ScanSnap and similar devices. Press the button, get a PDF delivered to your document management system.
 
-## The Device, ScanSnap
+## How It Works
 
-These are pretty cheap to find used, I brought mine for CA$5 from a [local electronics recycler](https://retail.era.ca).
+1. Press the scan button on the scanner
+2. `scanbd` detects the button press and calls `scan-station scan`
+3. The document is scanned to PDF via [sane-scan-pdf](https://github.com/rocketraman/sane-scan-pdf)
+4. The PDF is uploaded to all configured backends in parallel (filesystem, Papra, Paperless-NGX, S3, Google Drive)
 
-| | |
-| --- | --- |
-| [Wikipedia Entry](https://en.wikipedia.org/wiki/List_of_Fujitsu_image_scanners) | [!["Fujitsu ScanSnap S1500](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)|
-| [Fujitsu ScanSnap S1500 Front](./assets/ScanSnap_S1500_Front.jpg) | [![Fujitsu ScanSnap S1500](./assets/ScanSnap_S1500_Front.jpg)](./assets/ScanSnap_S1500_Front.jpg) |
-| [Fujitsu ScanSnap S1500 Rear](./assets/ScanSnap_S1500_Rear.jpg) | [![Fujitsu ScanSnap S1500 Back](./assets/ScanSnap_S1500_Back.jpg)](./assets/ScanSnap_S1500_Rear.jpg) |
-| [Fujitsu ScanSnap S1500 Internal](./assets/ScanSnap_S1500_Internal.jpg) | [![Fujitsu ScanSnap S1500 Tray](./assets/ScanSnap_S1500_Internal.jpg)](./assets/ScanSnap_S1500_Internal.jpg) |
-| [Fujitsu ScanSnap S1500 Closed](./assets/ScanSnap_S1500_Closed.jpg) | [![Fujitsu ScanSnap S1500 Closed](./assets/ScanSnap_S1500_Closed.jpg)](./assets/ScanSnap_S1500_Closed.jpg) |
-
-This is a duplex scanner (scans both sides at once) with a gravity fed tray and has a scan button on the device to start scanning.
-
-### The Problem
-
-The scan button on the device does not trigger the scanning function, it instead just notifies an accompanying software which then initiates the scan. I think the software for windows and mac was available till 2024 and then the support was dropped, I don't even know if this works with the latest windows and mac machines. But what I want is a standalone scan server where I just load the tray, press scan and shred the documents while my document storage automatically ingests the scanned document and processes it for later use.
-
-## Scan Station System
-
-Standalone Headless Scanning system
-
-### Hardware
-
-Apart from the ScanSnap scanner, I hooked up a SBC-Computer card (with a USB 2.0 or higher port) I had lying around (no preference, get the cheapest one, RPi, ROCK*, OrDroid, etc.)
-
-### Software
-
-Almost all of my machines are built over [DietPi](https://dietpi.com/#download), even VMs, I use [simple script to manage docker containers](https://github.com/whizzzkid/sdm) running on DietPi. This allows me to update, prune and backup the entire system easily. I use `dietpi-software` to install `Docker` which is optimized for DietPi.
-
-### Scanner Setup
-
-The Device is now connected to SBC and is on, I can now create a `docker-compose.yaml` like so:
+## Quick Start (Docker)
 
 ```yaml
+# docker-compose.yaml
 services:
   scanner:
     image: ghcr.io/whizzzkid/scan-station:latest
@@ -47,83 +23,371 @@ services:
     restart: always
     privileged: true
     environment:
-      - TZ=${TZ}
+      - TZ=America/Edmonton
     volumes:
       - /ingest:/scans
+      - ./config.toml:/etc/scan-station/config.toml:ro
       - /var/run/dbus:/var/run/dbus
 ```
 
-don't forget to have the right mount path for `/ingest` this is just an example, for me this is a NFS mount. Then start the scanning system:
-
 ```sh
-./run.sh -cupv   # based on the docker management script above, can be `docker compose up -d` too.
+docker compose up -d
 ```
 
-## Scan
+## Configuration
 
-Load the docs to be shredded (or scanned before) in the tray and press the button. The first time it ran I was excited, it goes through so quickly and does both sides too. WOW!
+scan-station uses a TOML config file mounted at `/etc/scan-station/config.toml`.
 
-This is way faster than my HP Flatbed and my phone camera scanner, time to cleanup all those pesky papers I have laying around.
+Secrets use `${ENV_VAR}` syntax — they're resolved from environment variables at runtime, so the config file is safe to commit.
 
-## Customization
+### Minimal Config (filesystem only)
 
-### Scanning
+```toml
+[scan]
+vendor = "fujitsu"
+dpi = 300
+mode = "Color"
 
-The [scan.sh](./scan.sh) script is all what it takes to scan the page, this is based on [sane-scan-pdf](https://github.com/rocketraman/sane-scan-pdf).
+[[backends]]
+type = "filesystem"
+path = "/scans"
+```
 
-You can configure the DPI and Mode settings in the `docker-compose.yaml`:
+This is the default — scanned PDFs land in `/scans/` (mounted as a Docker volume).
+
+### Scan Settings
+
+```toml
+[scan]
+vendor = "fujitsu"           # scanner vendor (used by sane-scan-pdf)
+dpi = 300                    # scan resolution
+mode = "Color"               # Color, Gray, or Lineart
+file_prefix = "scan"         # filename prefix
+date_format = "%Y-%m-%d-%H%M%S-%3f-%Z"  # chrono timestamp format
+scan_program = "/app/sane-scan-pdf/scan" # path to scan engine
+tmp_dir = "/tmp/scan-station"            # temp directory for scan output
+```
+
+## Backends
+
+Each `[[backends]]` section defines an upload target. You can have multiple backends — they all receive the scanned PDF in parallel. You can even have multiple instances of the same backend type.
+
+Every backend supports optional retry configuration:
+
+```toml
+[backends.retry]
+max_retries = 3          # default: 0 (no retries)
+retry_delay_ms = 2000    # default: 1000
+```
+
+---
+
+### Filesystem
+
+Copies the PDF to a local directory. This is the default backend.
+
+```toml
+[[backends]]
+type = "filesystem"
+path = "/scans"
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `path` | yes | Target directory |
+
+---
+
+### Papra
+
+Uploads to [Papra](https://papra.app) document management via its REST API.
+
+```toml
+[[backends]]
+type = "papra"
+api_url = "https://papra.example.com"
+api_key = "${PAPRA_API_KEY}"
+organization_id = "org-12345"
+ocr_language = "eng"
+
+[backends.retry]
+max_retries = 3
+retry_delay_ms = 2000
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `api_url` | yes | Papra instance URL |
+| `api_key` | yes | API key (use `${ENV_VAR}` for secrets) |
+| `organization_id` | yes | Organization to upload into |
+| `ocr_language` | no | OCR language (e.g., `eng`, `deu`, `fra`) |
+
+Docker Compose environment:
 
 ```yaml
+environment:
+  - PAPRA_API_KEY=your-api-key-here
+```
+
+---
+
+### Paperless-NGX
+
+Uploads to [Paperless-NGX](https://docs.paperless-ngx.com) for automatic OCR, tagging, and document management.
+
+```toml
+[[backends]]
+type = "paperless"
+api_url = "https://paperless.example.com"
+token = "${PAPERLESS_TOKEN}"
+title = "Scanned Document"
+tags = ["scanned", "inbox"]
+
+[backends.retry]
+max_retries = 3
+retry_delay_ms = 2000
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `api_url` | yes | Paperless-NGX instance URL |
+| `token` | yes | API auth token (use `${ENV_VAR}`) |
+| `title` | no | Default document title |
+| `correspondent` | no | Default correspondent |
+| `document_type` | no | Default document type |
+| `tags` | no | List of tags to apply |
+
+Docker Compose environment:
+
+```yaml
+environment:
+  - PAPERLESS_TOKEN=your-token-here
+```
+
+---
+
+### S3 / MinIO
+
+Uploads to any S3-compatible object storage (AWS S3, MinIO, Backblaze B2, etc.).
+
+```toml
+[[backends]]
+type = "s3"
+bucket = "my-scans"
+region = "us-east-1"
+prefix = "scans/2025/"
+access_key_id = "${AWS_ACCESS_KEY_ID}"
+secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
+
+[backends.retry]
+max_retries = 3
+retry_delay_ms = 5000
+```
+
+For **MinIO** or self-hosted S3, add the `endpoint` field:
+
+```toml
+[[backends]]
+type = "s3"
+bucket = "scans"
+region = "us-east-1"
+endpoint = "https://minio.local:9000"
+access_key_id = "${MINIO_ACCESS_KEY}"
+secret_access_key = "${MINIO_SECRET_KEY}"
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `bucket` | yes | S3 bucket name |
+| `region` | no | AWS region (default: `us-east-1`) |
+| `endpoint` | no | Custom endpoint URL (for MinIO, etc.) |
+| `prefix` | no | Object key prefix (e.g., `scans/`) |
+| `access_key_id` | yes | AWS access key or MinIO user |
+| `secret_access_key` | yes | AWS secret key or MinIO password |
+
+Docker Compose environment:
+
+```yaml
+environment:
+  - AWS_ACCESS_KEY_ID=AKIA...
+  - AWS_SECRET_ACCESS_KEY=...
+```
+
+---
+
+### Google Drive
+
+Uploads to a Google Drive folder using a service account.
+
+```toml
+[[backends]]
+type = "google_drive"
+credentials_file = "/etc/scan-station/gcloud-sa.json"
+folder_id = "1ABCdef_ghijklmnop"
+
+[backends.retry]
+max_retries = 3
+retry_delay_ms = 5000
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `credentials_file` | yes | Path to service account JSON key file |
+| `folder_id` | yes | Google Drive folder ID to upload into |
+
+**Setup:**
+
+1. Create a service account in [Google Cloud Console](https://console.cloud.google.com/iam-admin/serviceaccounts)
+2. Enable the Google Drive API
+3. Download the JSON key file
+4. Share the target Drive folder with the service account email
+5. Mount the key file into Docker:
+
+```yaml
+volumes:
+  - ./gcloud-sa.json:/etc/scan-station/gcloud-sa.json:ro
+```
+
+---
+
+## Full Example: Multiple Backends
+
+This config saves locally AND uploads to Papra and S3:
+
+```toml
+[scan]
+vendor = "fujitsu"
+dpi = 300
+mode = "Color"
+file_prefix = "scan"
+
+# Save locally
+[[backends]]
+type = "filesystem"
+path = "/scans"
+
+# Upload to Papra
+[[backends]]
+type = "papra"
+api_url = "https://papra.example.com"
+api_key = "${PAPRA_API_KEY}"
+organization_id = "org-12345"
+
+[backends.retry]
+max_retries = 3
+retry_delay_ms = 2000
+
+# Archive to S3
+[[backends]]
+type = "s3"
+bucket = "document-archive"
+region = "us-west-2"
+prefix = "scans/"
+access_key_id = "${AWS_ACCESS_KEY_ID}"
+secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
+
+[backends.retry]
+max_retries = 3
+retry_delay_ms = 5000
+```
+
+```yaml
+# docker-compose.yaml
+services:
+  scanner:
+    image: ghcr.io/whizzzkid/scan-station:latest
+    privileged: true
     environment:
-      - TZ='America/Edmonton'                 # defaults to 'Etc/UTC'
-      - dpi=120                               # defaults to 300
-      - mode=Gray                             # defaults to 'Color'
-      - file_prefix=scan                      # defaults to 'scan'
-      - date_format="%Y-%m-%d-%H%M%S-%3N-%Z"  # defaults to "%Y-%m-%d-%H%M%S-%3N-%Z"
+      - TZ=America/Edmonton
+      - PAPRA_API_KEY=${PAPRA_API_KEY}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    volumes:
+      - /nfs/scans:/scans
+      - ./config.toml:/etc/scan-station/config.toml:ro
+      - /var/run/dbus:/var/run/dbus
 ```
 
-Or, create a `.env` file in the same directory as `docker-compose.yaml` with the above variables, this will override the defaults.
+## CLI Usage
+
+The `scan-station` binary can also be used standalone (without Docker):
 
 ```sh
-# .env
-TZ='America/Edmonton'                         # defaults to 'Etc/UTC'
-dpi=120                                       # defaults to 300
-mode=Gray                                     # defaults to 'Color'
-file_prefix=scan                              # defaults to 'scan'
-date_format="%Y-%m-%d-%H%M%S-%3N-%Z"          # defaults to "%Y-%m-%d-%H%M%S-%3N-%Z"
+# Scan and upload
+scan-station --config config.toml scan
+
+# Scan with overrides
+scan-station --config config.toml scan --dpi 600 --mode Gray
+
+# Scan without uploading
+scan-station --config config.toml scan --no-upload
+
+# Upload an existing file
+scan-station --config config.toml upload /path/to/document.pdf
+
+# Validate config and test backend connectivity
+scan-station --config config.toml validate
 ```
 
-> [!TIP]
-> The computed filename with defaults will be `scan-<YYYY>-<MM>-<DD>-<HHMMSS>-<3N>-<Z>.pdf`, for example `scan-2025-01-01-120000-123-UTC.pdf`.
+The `discover-scanner` binary detects USB scanners:
 
-Or, if you want more flexibility, you can probably create your own [custom scan script](scan.sh) and overlay in the docker compose like:
+```sh
+# Auto-detect Fujitsu scanner
+discover-scanner
 
-```yaml
-...
-    volumes:
-      - ./your-custom-scan.sh:/etc/scanbd/scripts/scan.sh
-...
+# Specify vendor
+discover-scanner --vendor canon
 ```
+
+## Building from Source
+
+```sh
+# Default (filesystem backend only, ~2MB)
+cargo build --release -p scan-station
+
+# All backends (~4-5MB)
+cargo build --release -p scan-station --features all-backends
+
+# Only the backends you need
+cargo build --release -p scan-station --features "filesystem,papra,s3"
+
+# Discovery binary (~1MB)
+cargo build --release -p discover-scanner
+```
+
+## The Device
+
+These are pretty cheap to find used. I got mine for CA$5 from a [local electronics recycler](https://retail.era.ca).
+
+| | |
+| --- | --- |
+| [Wikipedia Entry](https://en.wikipedia.org/wiki/List_of_Fujitsu_image_scanners) | [![Fujitsu ScanSnap S1500](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)](https://upload.wikimedia.org/wikipedia/commons/c/c7/Scansnap_S1500_001_%285460070526%29.jpg)|
+| [Fujitsu ScanSnap S1500 Front](./assets/ScanSnap_S1500_Front.jpg) | [![Fujitsu ScanSnap S1500](./assets/ScanSnap_S1500_Front.jpg)](./assets/ScanSnap_S1500_Front.jpg) |
+| [Fujitsu ScanSnap S1500 Rear](./assets/ScanSnap_S1500_Rear.jpg) | [![Fujitsu ScanSnap S1500 Back](./assets/ScanSnap_S1500_Back.jpg)](./assets/ScanSnap_S1500_Rear.jpg) |
+
+This is a duplex scanner (scans both sides at once) with a gravity-fed tray and a scan button on the device.
 
 ### Non-Fujitsu Scanners
 
-The [sane-scan-pdf](https://github.com/rocketraman/sane-scan-pdf) project is built around Fujitsu scanners, but there is a possibility to provide a custom device.
+Set the `vendor` field in `[scan]` or pass `--vendor` to `discover-scanner`:
 
-So `docker-compose.yaml` can be modified to have a vendor (this defaults to `fujitsu`)
-
-```yaml
-    environment:
-      - vendor='Non-Fujitsu'
+```toml
+[scan]
+vendor = "canon"
 ```
 
-## Document Management
+## Architecture
 
-There are plenty of self-hosted solutions for document management available, two popular ones are [paperless-ngx](https://github.com/paperless-ngx/paperless-ngx) and [papra](https://github.com/papra-hq/papra), either should work till these can ingest from the same NFS share and have the document ready to be served.
+See [docs/architecture.md](docs/architecture.md) for the full system design.
+
+## Adding Backends
+
+See [docs/adding-backends.md](docs/adding-backends.md) for how to contribute new backends.
 
 ## Acknowledgements
 
-- <https://github.com/ep1cman/fujitsu-ix1300-scan-on-button> inspiration for this work.
-- <https://github.com/rocketraman/sane-scan-pdf> makes scanning so simple.
+- [ep1cman/fujitsu-ix1300-scan-on-button](https://github.com/ep1cman/fujitsu-ix1300-scan-on-button) — inspiration for this project
+- [rocketraman/sane-scan-pdf](https://github.com/rocketraman/sane-scan-pdf) — the scan engine
 
 ## License
 
