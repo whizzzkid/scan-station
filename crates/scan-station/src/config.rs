@@ -180,8 +180,11 @@ pub struct GoogleDriveConfig {
 /// Substitute `${VAR_NAME}` patterns in a string with environment variable values.
 ///
 /// Skips TOML comment lines (lines whose first non-whitespace character is `#`).
+/// Uses `replace_all` with a closure for single-pass substitution (no double-replace risk).
 fn substitute_env_vars(input: &str) -> Result<String> {
-    let re = Regex::new(r"\$\{([^}]+)\}").expect("valid regex");
+    let re = Regex::new(r"\$\{([^}]+)\}").map_err(|e| {
+        ScanStationError::Config(format!("invalid regex: {e}"))
+    })?;
     let mut output_lines = Vec::new();
     let mut errors = Vec::new();
 
@@ -191,22 +194,19 @@ fn substitute_env_vars(input: &str) -> Result<String> {
             continue;
         }
 
-        let mut result_line = line.to_owned();
-        for cap in re.captures_iter(line) {
-            let full_match = &cap[0];
-            let var_name = &cap[1];
+        let result_line = re.replace_all(line, |caps: &regex::Captures| {
+            let var_name = &caps[1];
             match std::env::var(var_name) {
-                Ok(value) => {
-                    result_line = result_line.replace(full_match, &value);
-                }
+                Ok(value) => value,
                 Err(_) => {
                     if !errors.contains(&var_name.to_owned()) {
                         errors.push(var_name.to_owned());
                     }
+                    caps[0].to_owned()
                 }
             }
-        }
-        output_lines.push(result_line);
+        });
+        output_lines.push(result_line.into_owned());
     }
 
     if !errors.is_empty() {
@@ -316,6 +316,7 @@ pub fn load_from_str(toml_str: &str) -> Result<AppConfig> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serial_test::serial;
 
     #[test]
     fn parses_minimal_config() {
@@ -398,6 +399,7 @@ path = "/backup"
     }
 
     #[test]
+    #[serial]
     fn env_substitution_works() {
         unsafe { std::env::set_var("TEST_SCAN_STATION_KEY", "secret123") };
         let toml = r#"
@@ -446,6 +448,7 @@ path = "/scans"
     }
 
     #[test]
+    #[serial]
     fn load_from_env_returns_defaults() {
         let config = load_from_env();
         assert_eq!(config.scan.vendor, "fujitsu");
@@ -459,6 +462,7 @@ path = "/scans"
     }
 
     #[test]
+    #[serial]
     fn env_overrides_apply_to_scan_config() {
         unsafe {
             std::env::set_var("SCAN_VENDOR", "canon");
@@ -477,6 +481,7 @@ path = "/scans"
     }
 
     #[test]
+    #[serial]
     fn env_output_dir_overrides_filesystem_path() {
         unsafe { std::env::set_var("SCAN_OUTPUT_DIR", "/custom/path") };
         let config = load_from_env();
@@ -489,6 +494,7 @@ path = "/scans"
     }
 
     #[test]
+    #[serial]
     fn load_falls_back_to_env_when_no_file() {
         let config = load(Path::new("/nonexistent/config.toml")).unwrap();
         assert_eq!(config.scan.vendor, "fujitsu");

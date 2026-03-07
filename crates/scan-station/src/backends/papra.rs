@@ -104,9 +104,9 @@ impl super::Backend for PapraBackend {
             .await
             .map_err(|e| ScanStationError::Config(format!("papra: cannot reach {url}: {e}")))?;
 
-        if resp.status().is_client_error() && resp.status().as_u16() == 401 {
+        if !resp.status().is_success() {
             return Err(ScanStationError::Config(
-                "papra: authentication failed (401)".into(),
+                format!("papra: validation failed (HTTP {})", resp.status()),
             ));
         }
 

@@ -57,7 +57,7 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
             let uploader = Uploader::from_config(&app_config.backends)?;
             let retries = backends::extract_retry_configs(&app_config.backends);
             let results = uploader.upload_all(&pdf_path, &retries).await;
-            report_results(&results);
+            check_results(&results)?;
         }
 
         Command::Upload { file } => {
@@ -68,7 +68,7 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
             let uploader = Uploader::from_config(&app_config.backends)?;
             let retries = backends::extract_retry_configs(&app_config.backends);
             let results = uploader.upload_all(&file, &retries).await;
-            report_results(&results);
+            check_results(&results)?;
         }
 
         Command::Validate => {
@@ -96,7 +96,9 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
     Ok(())
 }
 
-fn report_results(results: &[backends::UploadResult]) {
+/// Log upload results and return error if any backend failed.
+fn check_results(results: &[backends::UploadResult]) -> std::result::Result<(), ScanStationError> {
+    let mut any_failed = false;
     for r in results {
         if r.success {
             tracing::info!(
@@ -111,7 +113,16 @@ fn report_results(results: &[backends::UploadResult]) {
                 error = %r.message,
                 "upload failed"
             );
+            any_failed = true;
         }
+    }
+    if any_failed {
+        Err(ScanStationError::Upload {
+            backend: "multiple".into(),
+            source: "one or more backends failed".into(),
+        })
+    } else {
+        Ok(())
     }
 }
 

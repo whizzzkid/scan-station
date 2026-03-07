@@ -25,6 +25,7 @@ jobs:
           manifest-file: .github/.release-please-manifest.json
 
   docker:
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
     runs-on: ubuntu-latest
     needs: release-please
     steps:

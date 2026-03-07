@@ -41,7 +41,9 @@ RUN apt-get update && \
       units \
       usbutils \
       util-linux && \
-    git clone --depth 1 https://github.com/rocketraman/sane-scan-pdf.git /app/sane-scan-pdf && \
+    # Pinned to specific commit for reproducible builds
+    git clone https://github.com/rocketraman/sane-scan-pdf.git /app/sane-scan-pdf && \
+    cd /app/sane-scan-pdf && git checkout 019e95cb64bb31c60e6bf48c97b2f9f5728405ab && cd /app && \
     apt-get purge -y git && \
     apt-get autoremove -y && \
     apt-get clean && \

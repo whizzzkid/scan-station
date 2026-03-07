@@ -14,9 +14,10 @@ Scanned PDFs appear in `./scans/`.
 
 ## With multiple backends
 
-1. Edit `.env` with your API keys
-2. Edit `config.toml` — uncomment the backends you want
-3. Run:
+1. Copy the env template: `cp .env.example .env`
+2. Edit `.env` with your API keys
+3. Edit `config.toml` — uncomment the backends you want
+4. Run:
 
 ```sh
 docker compose up -d
@@ -27,7 +28,7 @@ docker compose up -d
 | File | Purpose |
 |------|---------|
 | `docker-compose.yml` | Container config with all mount points and env vars |
-| `.env` | Secrets and settings (not committed to git) |
+| `.env.example` | Secrets template (copy to `.env` and fill in) |
 | `config.toml` | Backend configuration (safe to commit — secrets use `${ENV_VAR}`) |
 | `gcloud-sa.json` | Google Drive service account key (create if using gdrive backend) |
 

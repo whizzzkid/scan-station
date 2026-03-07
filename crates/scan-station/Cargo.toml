@@ -40,3 +40,4 @@ jsonwebtoken = { version = "9", optional = true }
 wiremock = "0.6"
 tempfile = "3"
 tokio = { version = "1", features = ["test-util"] }
+serial_test = "3"

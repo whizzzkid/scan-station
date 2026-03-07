@@ -39,18 +39,23 @@ jobs:
           PACKAGE_NAME=$(echo "${REPO}" | cut -d'/' -f2)
           OWNER=$(echo "${REPO}" | cut -d'/' -f1)
 
-          # List versions and find the one matching our tag
-          VERSION_ID=$(gh api \
-            "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
-            --jq ".[] | select(.metadata.container.tags[] == \"${TAG}\") | .id" \
-            2>/dev/null || true)
+          # Try user endpoint first, fall back to org endpoint
+          for OWNER_TYPE in users orgs; do
+            VERSION_ID=$(gh api \
+              "/${OWNER_TYPE}/${OWNER}/packages/container/${PACKAGE_NAME}/versions" \
+              --jq ".[] | select(.metadata.container.tags[] == \"${TAG}\") | .id" \
+              2>/dev/null || true)
 
-          if [ -n "${VERSION_ID}" ]; then
-            echo "Deleting package version ${VERSION_ID} (tag: ${TAG})"
-            gh api \
-              --method DELETE \
-              "/users/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
-              || echo "Failed to delete (may need org-level permissions)"
-          else
+            if [ -n "${VERSION_ID}" ]; then
+              echo "Deleting package version ${VERSION_ID} (tag: ${TAG}) via /${OWNER_TYPE}/"
+              gh api \
+                --method DELETE \
+                "/${OWNER_TYPE}/${OWNER}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+                && break \
+                || echo "Failed via /${OWNER_TYPE}/, trying next..."
+            fi
+          done
+
+          if [ -z "${VERSION_ID}" ]; then
             echo "No package version found with tag: ${TAG}"
           fi

@@ -116,9 +116,9 @@ impl super::Backend for PaperlessBackend {
             .await
             .map_err(|e| ScanStationError::Config(format!("paperless: cannot reach {url}: {e}")))?;
 
-        if resp.status().as_u16() == 401 || resp.status().as_u16() == 403 {
+        if !resp.status().is_success() {
             return Err(ScanStationError::Config(
-                format!("paperless: authentication failed ({})", resp.status()),
+                format!("paperless: validation failed (HTTP {})", resp.status()),
             ));
         }
 
