@@ -26,6 +26,12 @@ fn setup_tracing(verbosity: u8) {
 }
 
 async fn run(cli: Cli) -> Result<(), ScanStationError> {
+    tracing::info!(
+        version = env!("CARGO_PKG_VERSION"),
+        config = %cli.config.display(),
+        "scan-station starting"
+    );
+
     let mut app_config = config::load(&cli.config)?;
 
     match cli.command {
@@ -47,7 +53,15 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
             }
 
             let pdf_path = scan_station::scan::run(&app_config.scan).await?;
-            tracing::info!(path = %pdf_path.display(), "scan produced");
+            let file_size = tokio::fs::metadata(&pdf_path)
+                .await
+                .map(|m| m.len())
+                .unwrap_or(0);
+            tracing::info!(
+                path = %pdf_path.display(),
+                size_bytes = file_size,
+                "scan produced"
+            );
 
             if no_upload {
                 tracing::info!("--no-upload: skipping backend uploads");
@@ -55,6 +69,11 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
             }
 
             let uploader = Uploader::from_config(&app_config.backends)?;
+            tracing::info!(
+                backends = uploader.backends().len(),
+                names = %uploader.backends().iter().map(|b| b.name()).collect::<Vec<_>>().join(", "),
+                "uploading to backends"
+            );
             let retries = backends::extract_retry_configs(&app_config.backends);
             let results = uploader.upload_all(&pdf_path, &retries).await;
 
@@ -71,7 +90,13 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
                 return Err(ScanStationError::FileNotFound(file));
             }
 
+            tracing::info!(path = %file.display(), "uploading existing file");
             let uploader = Uploader::from_config(&app_config.backends)?;
+            tracing::info!(
+                backends = uploader.backends().len(),
+                names = %uploader.backends().iter().map(|b| b.name()).collect::<Vec<_>>().join(", "),
+                "uploading to backends"
+            );
             let retries = backends::extract_retry_configs(&app_config.backends);
             let results = uploader.upload_all(&file, &retries).await;
             check_results(&results)?;
@@ -104,28 +129,34 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
 
 /// Log upload results and return error if any backend failed.
 fn check_results(results: &[backends::UploadResult]) -> std::result::Result<(), ScanStationError> {
-    let mut any_failed = false;
+    let mut succeeded = 0u32;
+    let mut failed = 0u32;
+
     for r in results {
         if r.success {
+            succeeded += 1;
             tracing::info!(
                 backend = %r.backend_name,
                 duration_ms = r.duration.as_millis(),
                 "upload ok"
             );
         } else {
+            failed += 1;
             tracing::error!(
                 backend = %r.backend_name,
                 duration_ms = r.duration.as_millis(),
                 error = %r.message,
                 "upload failed"
             );
-            any_failed = true;
         }
     }
-    if any_failed {
+
+    tracing::info!(succeeded, failed, total = results.len(), "upload complete");
+
+    if failed > 0 {
         Err(ScanStationError::Upload {
             backend: "multiple".into(),
-            source: "one or more backends failed".into(),
+            source: format!("{failed} of {} backends failed", results.len()).into(),
         })
     } else {
         Ok(())
