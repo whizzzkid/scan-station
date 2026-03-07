@@ -57,6 +57,12 @@ async fn run(cli: Cli) -> Result<(), ScanStationError> {
             let uploader = Uploader::from_config(&app_config.backends)?;
             let retries = backends::extract_retry_configs(&app_config.backends);
             let results = uploader.upload_all(&pdf_path, &retries).await;
+
+            // Clean up temp file after all backends have consumed it
+            if let Err(e) = tokio::fs::remove_file(&pdf_path).await {
+                tracing::warn!(path = %pdf_path.display(), "failed to remove temp file: {e}");
+            }
+
             check_results(&results)?;
         }
 
