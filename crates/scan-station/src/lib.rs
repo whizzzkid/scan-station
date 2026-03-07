@@ -1,1 +1,1 @@
-// scan-station library root
+pub mod error;
