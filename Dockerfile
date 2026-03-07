@@ -1,5 +1,5 @@
 # Stage 1: Build Rust binaries
-FROM rust:1.88-slim-bookworm AS builder
+FROM rust:1.94.0-slim-bookworm AS builder
 
 WORKDIR /build
 COPY Cargo.toml Cargo.lock ./
