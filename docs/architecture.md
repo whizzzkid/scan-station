@@ -169,12 +169,30 @@ multiple instances of the same type (e.g., two S3 buckets).
 
 ## Docker Deployment
 
+Zero-config (filesystem only, just env vars):
+
 ```yaml
 services:
   scanner:
     image: ghcr.io/whizzzkid/scan-station:latest
-    privileged: true          # USB device access
+    privileged: true
     environment:
+      - TZ=America/Edmonton
+      - SCAN_DPI=300
+    volumes:
+      - /ingest:/scans
+      - /var/run/dbus:/var/run/dbus
+```
+
+Multi-backend (mount a TOML config):
+
+```yaml
+services:
+  scanner:
+    image: ghcr.io/whizzzkid/scan-station:latest
+    privileged: true
+    environment:
+      - TZ=America/Edmonton
       - PAPRA_API_KEY=${PAPRA_API_KEY}
     volumes:
       - /ingest:/scans
@@ -182,12 +200,18 @@ services:
       - /var/run/dbus:/var/run/dbus
 ```
 
-The Docker image is a multi-stage build:
+See the [example/](../example/) folder for a complete ready-to-copy setup.
+
+The Docker image works out of the box with no config file. Set `SCAN_*`
+env vars for simple use, or mount a TOML config for multi-backend setups.
+
+The image is a multi-stage build:
 - **Builder stage**: `rust:slim-bookworm` compiles both binaries
 - **Runtime stage**: `debian:bookworm-slim` with only scanning system deps
 
-System dependencies (runtime only): sane, scanbd, ghostscript,
-imagemagick, netpbm, parallel, poppler-utils, usbutils, ca-certificates.
+System dependencies (runtime only): bc, ca-certificates, ghostscript,
+imagemagick, netpbm, poppler-utils, sane-utils, scanbd, tzdata, units,
+usbutils, util-linux. See the Dockerfile for per-package justification.
 
 ## Adding a New Backend
 

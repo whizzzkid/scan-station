@@ -40,14 +40,14 @@ cargo fmt --all                                               # format
 ## Key File Map
 
 ```
-Cargo.toml                              # workspace root
+Cargo.toml                              # workspace root (version = 1.0.0)
 crates/discover-scanner/src/main.rs     # standalone USB discovery binary
 crates/scan-station/src/
   main.rs                               # CLI entry point
   cli.rs                                # clap subcommand definitions
   lib.rs                                # library root
   error.rs                              # ScanStationError enum
-  config.rs                             # TOML parsing + ${ENV_VAR} substitution
+  config.rs                             # TOML + ${ENV_VAR} + SCAN_* env overrides
   scan.rs                               # shell out to sane-scan-pdf
   backends/
     mod.rs                              # Backend trait + Uploader orchestrator + factory
@@ -56,9 +56,18 @@ crates/scan-station/src/
     paperless.rs                        # HTTP POST multipart (feature: paperless)
     s3.rs                               # HTTP PUT + SigV4 (feature: s3)
     gdrive.rs                           # HTTP POST + JWT auth (feature: gdrive)
-config.example.toml                     # annotated example configuration
+config.example.toml                     # annotated example config (root)
+example/                                # copy-to-server Docker setup
+  docker-compose.yml                    # all mounts, env vars documented
+  config.toml                           # all backends commented, ready to enable
+  .env                                  # secrets template
 conf/scanbd.conf                        # scanbd daemon config
-Dockerfile                              # multi-stage build
+Dockerfile                              # multi-stage build, no baked config
+.github/workflows/
+  ci.yml                                # tests + lint on every PR
+  test-image.yml                        # branch Docker image for device testing
+  cleanup-test-image.yml                # delete test image on PR close
+  release.yml                           # auto-semver, Docker, binary artifacts
 ```
 
 ## Adding a New Backend
@@ -78,11 +87,14 @@ Quick checklist:
 ## Key Patterns
 
 - **No SDKs.** Every backend is a raw HTTP request. S3 uses hand-rolled SigV4.
+- **Zero-config Docker:** Works with just env vars (SCAN_DPI, SCAN_VENDOR, etc.). TOML optional for multi-backend.
+- **Config 3-tier:** TOML file -> ${ENV_VAR} substitution -> SCAN_* env overrides -> CLI flags.
 - **Secrets:** `${ENV_VAR}` in TOML, resolved at config load time. Never hardcoded.
 - **Errors:** `thiserror` for `ScanStationError`. Never `unwrap()` in library code.
 - **Async:** All backend uploads dispatched in parallel via `tokio::task::JoinSet`.
 - **Tests:** `wiremock` for HTTP backends, `tempfile` for filesystem.
 - **Size:** `default-features = false` on all deps. Every KB matters on SBCs.
+- **CI:** All GitHub Actions use only verified publishers (GitHub, Docker, Google). No third-party actions.
 
 ## Conventions
 

@@ -108,11 +108,8 @@ max_retries = 3          # default: 0 (no retries)
 retry_delay_ms = 2000    # default: 1000
 ```
 
----
-
-### Filesystem
-
-Copies the PDF to a local directory. This is the default backend.
+<details>
+<summary><strong>Filesystem</strong> — local directory (default)</summary>
 
 ```toml
 [[backends]]
@@ -124,11 +121,12 @@ path = "/scans"
 |-------|----------|-------------|
 | `path` | yes | Target directory |
 
----
+</details>
 
-### Papra
+<details>
+<summary><strong>Papra</strong> — document management API</summary>
 
-Uploads to [Papra](https://papra.app) document management via its REST API.
+Uploads to [Papra](https://papra.app) via its REST API.
 
 ```toml
 [[backends]]
@@ -157,9 +155,10 @@ environment:
   - PAPRA_API_KEY=your-api-key-here
 ```
 
----
+</details>
 
-### Paperless-NGX
+<details>
+<summary><strong>Paperless-NGX</strong> — OCR and document management</summary>
 
 Uploads to [Paperless-NGX](https://docs.paperless-ngx.com) for automatic OCR, tagging, and document management.
 
@@ -192,9 +191,10 @@ environment:
   - PAPERLESS_TOKEN=your-token-here
 ```
 
----
+</details>
 
-### S3 / MinIO
+<details>
+<summary><strong>S3 / MinIO</strong> — object storage</summary>
 
 Uploads to any S3-compatible object storage (AWS S3, MinIO, Backblaze B2, etc.).
 
@@ -241,9 +241,10 @@ environment:
   - AWS_SECRET_ACCESS_KEY=...
 ```
 
----
+</details>
 
-### Google Drive
+<details>
+<summary><strong>Google Drive</strong> — service account upload</summary>
 
 Uploads to a Google Drive folder using a service account.
 
@@ -276,7 +277,7 @@ volumes:
   - ./gcloud-sa.json:/etc/scan-station/gcloud-sa.json:ro
 ```
 
----
+</details>
 
 ## Full Example: Multiple Backends
 
@@ -402,6 +403,21 @@ Set the `vendor` field in `[scan]` or pass `--vendor` to `discover-scanner`:
 ```toml
 [scan]
 vendor = "canon"
+```
+
+## CI/CD
+
+| Workflow | Trigger | What it does |
+|----------|---------|------------|
+| `ci.yml` | Every PR + push to main | `cargo test`, `cargo fmt --check`, `cargo clippy -D warnings` |
+| `test-image.yml` | Push to non-main branches | Builds Docker image tagged with branch name for device testing |
+| `cleanup-test-image.yml` | PR close + branch delete | Deletes branch-tagged test image from ghcr.io |
+| `release.yml` | Push to main | Auto-semver via release-please, Docker image (`:latest` + `:version`), binary artifacts |
+
+To test a branch on your device:
+
+```sh
+docker pull ghcr.io/whizzzkid/scan-station:feat-my-branch
 ```
 
 ## Architecture
