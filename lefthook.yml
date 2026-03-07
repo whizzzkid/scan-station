@@ -1,3 +1,16 @@
+# After clone/checkout/pull: ensure tools are installed
+post-checkout:
+  commands:
+    setup:
+      run: mise install && lefthook install
+      name: "Install tools and hooks"
+
+post-merge:
+  commands:
+    setup:
+      run: mise install && lefthook install
+      name: "Install tools and hooks"
+
 pre-commit:
   parallel: true
   commands:
