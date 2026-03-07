@@ -7,3 +7,6 @@ license = "MIT"
 
 [dependencies]
 clap = { version = "4", default-features = false, features = ["std", "derive", "help"] }
+
+[dev-dependencies]
+tempfile = "3"
