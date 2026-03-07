@@ -1,38 +1,59 @@
+# Stage 1: Build Rust binaries
+FROM rust:1.85-slim-bookworm AS builder
+
+WORKDIR /build
+COPY Cargo.toml Cargo.lock ./
+COPY crates/ crates/
+
+RUN cargo build --release -p scan-station --features all-backends \
+ && cargo build --release -p discover-scanner
+
+# Stage 2: Minimal runtime image
 FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# Dependencies based on: https://github.com/rocketraman/sane-scan-pdf/wiki/Dependencies-Installation
-RUN apt update &&         \
-    apt upgrade -y &&     \
-    apt install -y        \
-      bc                  \
-      ghostscript         \
-      git                 \
-      imagemagick         \
-      netpbm              \
-      parallel            \
-      poppler-utils       \
-      sane                \
-      sane-utils          \
-      scanbd              \
-      time                \
-      tzdata              \
-      units               \
-      usbutils            \
-      util-linux
+# System dependencies for SANE scanning (no-install-recommends for minimal size)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      bc \
+      ca-certificates \
+      ghostscript \
+      git \
+      imagemagick \
+      netpbm \
+      parallel \
+      poppler-utils \
+      sane \
+      sane-utils \
+      scanbd \
+      tzdata \
+      usbutils \
+      util-linux && \
+    # Clone scan engine (only reason git is installed)
+    git clone --depth 1 https://github.com/rocketraman/sane-scan-pdf.git /app/sane-scan-pdf && \
+    # Remove git and clean up
+    apt-get purge -y git && \
+    apt-get autoremove -y && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/locale /tmp/*
 
-ENV TZ=${TZ-"America/Edmonton"}
-RUN git clone https://github.com/rocketraman/sane-scan-pdf.git --depth 1
+# Copy compiled binaries from builder
+COPY --from=builder /build/target/release/scan-station /usr/local/bin/scan-station
+COPY --from=builder /build/target/release/discover-scanner /usr/local/bin/discover-scanner
 
-COPY scanbd.conf /etc/scanbd/scanbd.conf
-COPY scan.sh /etc/scanbd/scripts/scan.sh
-COPY discover.sh /app/discover.sh
+# Copy config files
+COPY conf/scanbd.conf /etc/scanbd/scanbd.conf
+COPY config.example.toml /etc/scan-station/config.toml
 
-RUN chmod +x /etc/scanbd/scripts/scan.sh && \
-    chmod +x /app/discover.sh
+# Create scanbd trigger script
+RUN printf '#!/bin/sh\nexec scan-station scan\n' \
+      > /etc/scanbd/scripts/scan-station && \
+    chmod +x /etc/scanbd/scripts/scan-station && \
+    mkdir -p /scans /etc/scan-station
 
-RUN mkdir /scans
-VOLUME /scans
+ENV TZ=Etc/UTC
+VOLUME ["/scans", "/etc/scan-station"]
 
-CMD /app/discover.sh && scanbd -d1 -f
+# Discover scanner, then start scanbd daemon
+CMD ["sh", "-c", "discover-scanner && scanbd -d1 -f"]
