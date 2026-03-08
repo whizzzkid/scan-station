@@ -1,0 +1,12 @@
+[package]
+name = "discover-scanner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "USB scanner discovery for scan-station"
+
+[dependencies]
+clap = { version = "4", default-features = false, features = ["std", "derive", "help"] }
+
+[dev-dependencies]
+tempfile = "3"

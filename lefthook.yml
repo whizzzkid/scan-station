@@ -1,0 +1,35 @@
+# After clone/checkout/pull: ensure tools are installed
+post-checkout:
+  commands:
+    setup:
+      run: mise install && lefthook install
+      name: "Install tools and hooks"
+
+post-merge:
+  commands:
+    setup:
+      run: mise install && lefthook install
+      name: "Install tools and hooks"
+
+pre-commit:
+  parallel: true
+  commands:
+    fmt:
+      run: cargo fmt --all -- --check
+      name: "Check formatting"
+    lint:
+      run: cargo clippy --workspace --features all-backends -- -D warnings
+      name: "Clippy lint"
+
+pre-push:
+  parallel: true
+  commands:
+    test-default:
+      run: cargo test --workspace
+      name: "Test (default features)"
+    test-all:
+      run: cargo test --workspace --features all-backends
+      name: "Test (all backends)"
+    build:
+      run: cargo build --workspace --features all-backends
+      name: "Build check"

@@ -1,0 +1,51 @@
+# scan-station example Docker Compose configuration
+#
+# Usage:
+#   1. Copy this folder to your server
+#   2. Edit .env with your secrets
+#   3. Edit config.toml to enable the backends you want
+#   4. docker compose up -d
+#
+# Minimal setup (no config file, filesystem only):
+#   Just set volumes and run — scan-station works out of the box.
+
+services:
+  scanner:
+    image: ghcr.io/whizzzkid/scan-station:latest
+    container_name: scanner
+    hostname: scanner
+    restart: always
+
+    # Required: USB device access for the scanner
+    privileged: true
+
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+
+      # Scan settings (override defaults without a config file)
+      - SCAN_VENDOR=${SCAN_VENDOR:-fujitsu}
+      - SCAN_DPI=${SCAN_DPI:-300}
+      - SCAN_MODE=${SCAN_MODE:-Color}
+      - SCAN_FILE_PREFIX=${SCAN_FILE_PREFIX:-scan}
+      - SCAN_OUTPUT_DIR=/scans
+
+      # Backend secrets (referenced as ${VAR} in config.toml)
+      - PAPRA_API_KEY=${PAPRA_API_KEY:-}
+      - PAPERLESS_TOKEN=${PAPERLESS_TOKEN:-}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+
+    volumes:
+      # Required: scanned PDFs land here
+      - ${SCAN_OUTPUT_PATH:-./scans}:/scans
+
+      # Required: USB/dbus access for scanner communication
+      - /var/run/dbus:/var/run/dbus
+
+      # Optional: mount config file for multi-backend setups
+      # Remove this line if you only need filesystem output
+      - ./config.toml:/etc/scan-station/config.toml:ro
+
+      # Optional: Google Drive service account credentials
+      # Uncomment if using the gdrive backend
+      # - ./gcloud-sa.json:/etc/scan-station/gcloud-sa.json:ro

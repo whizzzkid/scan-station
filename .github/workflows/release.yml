@@ -1,4 +1,4 @@
-name: Build and publish a Docker image to ghcr.io
+name: Release
 
 on:
   push:
@@ -8,14 +8,120 @@ on:
 
 permissions:
   packages: write
-  contents: read
+  contents: write
 
 jobs:
-  docker:
+  release-please:
     runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      version: ${{ steps.release.outputs.version }}
     steps:
-      - name: GHCR-Action
-        uses: KuhlTime/ghcr-action@1c6d32f50acb9bdacc942f160c01dc5c8b755571
+      - uses: googleapis/release-please-action@v4
+        id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          platforms: linux/amd64,linux/arm64,linux/arm64/v8
+          config-file: .github/release-please-config.json
+          manifest-file: .github/.release-please-manifest.json
+
+  docker:
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    needs: release-please
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from Cargo.toml
+        id: version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  binaries:
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ${{ matrix.os }}
+    needs: release-please
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            suffix: linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            suffix: linux-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            suffix: darwin-amd64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            suffix: darwin-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain and target
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add "${TARGET}"
+
+      - name: Install cross (Linux)
+        if: runner.os == 'Linux'
+        run: cargo install cross --locked
+
+      - name: Build (Linux via cross)
+        if: runner.os == 'Linux'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          cross build --release --target "${TARGET}" -p scan-station --features all-backends
+          cross build --release --target "${TARGET}" -p discover-scanner
+
+      - name: Build (macOS native)
+        if: runner.os == 'macOS'
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          cargo build --release --target "${TARGET}" -p scan-station --features all-backends
+          cargo build --release --target "${TARGET}" -p discover-scanner
+
+      - name: Package binaries
+        env:
+          TARGET: ${{ matrix.target }}
+          SUFFIX: ${{ matrix.suffix }}
+        run: |
+          cd "target/${TARGET}/release"
+          tar czf "${GITHUB_WORKSPACE}/scan-station-${SUFFIX}.tar.gz" scan-station discover-scanner
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+          SUFFIX: ${{ matrix.suffix }}
+        run: gh release upload "${TAG}" "scan-station-${SUFFIX}.tar.gz"

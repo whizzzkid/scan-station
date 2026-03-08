@@ -1,0 +1,84 @@
+# scan-station configuration
+#
+# This file is optional. Without it, scan-station saves PDFs to /scans
+# using settings from environment variables (SCAN_DPI, SCAN_VENDOR, etc.)
+#
+# Use this file when you need multiple upload backends.
+# Secrets use ${ENV_VAR} syntax — set them in .env or docker-compose.yml,
+# not here. This file is safe to commit to version control.
+
+[scan]
+vendor = "fujitsu"
+dpi = 300
+mode = "Color"
+file_prefix = "scan"
+
+# ── Backends ──────────────────────────────────────────────
+# Each [[backends]] block is an upload target.
+# All enabled backends receive the scanned PDF in parallel.
+# Remove or comment out a block to disable that backend.
+
+# Local filesystem (always recommended as a fallback)
+[[backends]]
+type = "filesystem"
+path = "/scans"
+
+# ── Papra ─────────────────────────────────────────────────
+# Uncomment to upload to Papra document management.
+# Set PAPRA_API_KEY in your .env file.
+#
+# [[backends]]
+# type = "papra"
+# api_url = "https://papra.example.com"
+# api_key = "${PAPRA_API_KEY}"
+# organization_id = "org-12345"
+# ocr_language = "eng"
+#
+#   [backends.retry]
+#   max_retries = 3
+#   retry_delay_ms = 2000
+
+# ── Paperless-NGX ────────────────────────────────────────
+# Uncomment to upload to Paperless-NGX.
+# Set PAPERLESS_TOKEN in your .env file.
+#
+# [[backends]]
+# type = "paperless"
+# api_url = "https://paperless.example.com"
+# token = "${PAPERLESS_TOKEN}"
+# title = "Scanned Document"
+# tags = ["scanned", "inbox"]
+#
+#   [backends.retry]
+#   max_retries = 3
+#   retry_delay_ms = 2000
+
+# ── S3 / MinIO ──────────────────────────────────────────
+# Uncomment to upload to S3-compatible storage.
+# Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in your .env file.
+#
+# [[backends]]
+# type = "s3"
+# bucket = "my-scans"
+# region = "us-east-1"
+# prefix = "scans/"
+# access_key_id = "${AWS_ACCESS_KEY_ID}"
+# secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
+# # endpoint = "https://minio.local:9000"  # uncomment for MinIO
+#
+#   [backends.retry]
+#   max_retries = 3
+#   retry_delay_ms = 5000
+
+# ── Google Drive ─────────────────────────────────────────
+# Uncomment to upload to Google Drive.
+# Mount your service account JSON in docker-compose.yml.
+#
+# [[backends]]
+# type = "google_drive"
+# credentials_file = "/etc/scan-station/gcloud-sa.json"
+# folder_id = "1ABCdef_ghijklmnop"
+#
+#   [backends.retry]
+#   max_retries = 3
+#   retry_delay_ms = 5000

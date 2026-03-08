@@ -1,0 +1,43 @@
+[package]
+name = "scan-station"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Headless scanning server with multi-backend document upload"
+
+[features]
+default = ["filesystem"]
+filesystem = []
+papra = ["dep:reqwest"]
+paperless = ["dep:reqwest"]
+s3 = ["dep:reqwest", "dep:hmac", "dep:sha2", "dep:hex"]
+gdrive = ["dep:reqwest", "dep:jsonwebtoken", "dep:serde_json"]
+http-backends = ["papra", "paperless"]
+cloud-backends = ["s3", "gdrive"]
+all-backends = ["filesystem", "http-backends", "cloud-backends"]
+
+[dependencies]
+clap = { version = "4", default-features = false, features = ["std", "derive", "help"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process", "fs", "time"] }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "env-filter"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+regex = { version = "1", default-features = false, features = ["std"] }
+
+# Optional: pulled only when a backend feature enables them
+reqwest = { version = "0.12", default-features = false, features = ["multipart", "rustls-tls", "json"], optional = true }
+serde_json = { version = "1", optional = true }
+hmac = { version = "0.12", optional = true }
+sha2 = { version = "0.10", optional = true }
+hex = { version = "0.4", optional = true }
+jsonwebtoken = { version = "9", optional = true }
+
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = "3"
+tokio = { version = "1", features = ["test-util"] }
+serial_test = "3"

@@ -1,0 +1,64 @@
+# scan-station configuration
+#
+# Mount this file into Docker at /etc/scan-station/config.toml
+# Secrets use ${ENV_VAR} syntax, resolved from environment at runtime.
+
+[scan]
+vendor = "fujitsu"
+dpi = 300
+mode = "Color"
+file_prefix = "scan"
+date_format = "%Y-%m-%d-%H%M%S-%3f-%Z"
+scan_program = "/app/sane-scan-pdf/scan"
+tmp_dir = "/tmp/scan-station"
+
+# --- BACKENDS ---
+# Each [[backends]] entry is an active upload target.
+# Remove or comment out a section to disable that backend.
+# You can have multiple instances of the same type.
+
+[[backends]]
+type = "filesystem"
+path = "/scans"
+
+# Uncomment to enable Papra uploads:
+# [[backends]]
+# type = "papra"
+# api_url = "https://papra.example.com"
+# api_key = "${PAPRA_API_KEY}"
+# organization_id = "org-123"
+# ocr_language = "eng"
+# [backends.retry]
+# max_retries = 3
+# retry_delay_ms = 2000
+
+# Uncomment to enable Paperless-NGX uploads:
+# [[backends]]
+# type = "paperless"
+# api_url = "https://paperless.example.com"
+# token = "${PAPERLESS_TOKEN}"
+# [backends.retry]
+# max_retries = 3
+# retry_delay_ms = 2000
+
+# Uncomment to enable S3 uploads:
+# [[backends]]
+# type = "s3"
+# bucket = "my-scans"
+# region = "us-east-1"
+# prefix = "scans/"
+# access_key_id = "${AWS_ACCESS_KEY_ID}"
+# secret_access_key = "${AWS_SECRET_ACCESS_KEY}"
+# # endpoint = "https://minio.local:9000"  # For MinIO/self-hosted S3
+# [backends.retry]
+# max_retries = 3
+# retry_delay_ms = 5000
+
+# Uncomment to enable Google Drive uploads:
+# [[backends]]
+# type = "google_drive"
+# credentials_file = "/etc/scan-station/gcloud-sa.json"
+# folder_id = "1ABC...XYZ"
+# [backends.retry]
+# max_retries = 3
+# retry_delay_ms = 5000
