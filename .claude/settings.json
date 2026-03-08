@@ -8,7 +8,7 @@
       "Bash(cargo run*--help*)",
       "Bash(cargo run*validate*)",
       "Bash(cargo tree*)",
-      "Bash(rustup check)"
+      "Bash(rustup check*)"
     ]
   }
 }
