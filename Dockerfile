@@ -20,7 +20,8 @@ WORKDIR /app
 #   imagemagick   — convert (image processing, crop, contrast)
 #   netpbm        — pnmtops (PNM -> PostScript)
 #   poppler-utils — pdfunite (merge scanned pages)
-#   sane-utils    — scanadf (scanner control)
+#   sane-utils    — scanimage, sane-find-scanner
+#   sane (scanadf only) — extracted without GTK/GIMP deps
 #   scanbd        — button press daemon
 #   tzdata        — timezone support for TZ env var
 #   units         — DPI unit conversion in sane-scan-pdf
@@ -44,10 +45,36 @@ RUN apt-get update && \
     # Pinned to specific commit for reproducible builds
     git clone https://github.com/rocketraman/sane-scan-pdf.git /app/sane-scan-pdf && \
     cd /app/sane-scan-pdf && git checkout 019e95cb64bb31c60e6bf48c97b2f9f5728405ab && cd /app && \
+    # Extract just scanadf from 'sane' package (avoid pulling GTK/GIMP/Adwaita bloat)
+    cd /tmp && apt-get download sane && \
+    dpkg --fsys-tarfile sane_*.deb | tar -xf - -C / ./usr/bin/scanadf && \
+    rm -f /tmp/sane_*.deb && cd /app && \
+    # Remove packages only needed for clone
     apt-get purge -y git && \
     apt-get autoremove -y && \
+    # Strip bloat: transitive deps never used at runtime
+    #   perl (~48MB): pulled by libsnmp40 -> libsane1, never executed
+    #   libsnmp (~6MB): SNMP not used for local USB scanning
+    #   poppler-data (~13MB): CJK CMap files not needed for scanned PDFs
+    #   libicu (~36MB): Unicode data, not needed at runtime for pdfunite
+    dpkg --force-depends --purge \
+      perl perl-modules-5.36 libperl5.36 \
+      libsnmp40 libsnmp-base \
+      poppler-data 2>/dev/null || true && \
+    # Clean up apt, docs, man pages, locale data, .git, caches
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man /usr/share/locale /tmp/*
+    rm -rf \
+      /var/lib/apt/lists/* \
+      /usr/share/doc \
+      /usr/share/man \
+      /usr/share/locale \
+      /usr/share/info \
+      /usr/share/lintian \
+      /usr/share/bug \
+      /app/sane-scan-pdf/.git \
+      /tmp/* \
+      /var/tmp/* \
+      /var/log/*
 
 # Copy compiled binaries from builder
 COPY --from=builder /build/target/release/scan-station /usr/local/bin/scan-station
